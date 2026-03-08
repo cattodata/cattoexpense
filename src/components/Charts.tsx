@@ -102,6 +102,103 @@ export function ExpenseBreakdownChart({
   );
 }
 
+/* ─── Category Bar Chart ─── */
+export function CategoryBarChart({
+  categoryBreakdown,
+  onCategoryClick,
+}: {
+  categoryBreakdown: CategoryBreakdown[];
+  onCategoryClick?: (category: string) => void;
+}) {
+  const barData = categoryBreakdown.map((c, i) => ({
+    name: `${getCategoryEmoji(c.category)} ${c.category}`,
+    fullName: c.category,
+    total: c.total,
+    fill: getCategoryColor(c.category, i),
+  }));
+
+  return (
+    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]">
+      <h3 className="text-xl font-bold text-[var(--catto-slate-900)] mb-6">Spending per Category</h3>
+      <ResponsiveContainer width="100%" height={320}>
+        <BarChart data={barData} margin={{ bottom: 90 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+          <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#94a3b8" }} angle={-40} textAnchor="end" height={100} interval={0} axisLine={{ stroke: "#e2e8f0" }} tickLine={false} />
+          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={formatCurrency} axisLine={false} tickLine={false} width={65} />
+          <Tooltip
+            formatter={(value) => formatCurrency(Number(value))}
+            labelFormatter={(_label, payload) => {
+              const entry = payload?.[0]?.payload as { fullName?: string } | undefined;
+              const cat = entry?.fullName || String(_label);
+              return `${getCategoryEmoji(cat)} ${cat}`;
+            }}
+            contentStyle={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "13px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+          />
+          <Bar dataKey="total" radius={[6, 6, 0, 0]} onClick={(_data, index) => onCategoryClick?.(barData[index].fullName)} className="cursor-pointer">
+            {barData.map((entry, index) => (
+              <Cell key={index} fill={entry.fill} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/* ─── Subcategory Donut Chart ─── */
+export function SubcategoryDonutChart({
+  subcategories,
+  categoryName,
+  onSubcategoryClick,
+}: {
+  subcategories: { name: string; total: number; count: number; pct: number }[];
+  categoryName: string;
+  onSubcategoryClick?: (subcategory: string) => void;
+}) {
+  const SUB_COLORS = ["#60a5fa","#f472b6","#34d399","#fbbf24","#a78bfa","#fb923c","#22d3ee","#f87171","#4ade80","#e879f9"];
+  const pieData = subcategories.map((s, i) => ({
+    name: s.name,
+    value: s.total,
+    fill: SUB_COLORS[i % SUB_COLORS.length],
+  }));
+
+  return (
+    <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-[var(--catto-slate-100)]">
+      <h4 className="text-sm font-bold text-[var(--catto-slate-500)] uppercase tracking-wider mb-4">
+        {getCategoryEmoji(categoryName)} {categoryName} — Subcategory Breakdown
+      </h4>
+      <ResponsiveContainer width="100%" height={260}>
+        <PieChart>
+          <Pie
+            data={pieData}
+            cx="50%"
+            cy="50%"
+            innerRadius={55}
+            outerRadius={85}
+            paddingAngle={2}
+            dataKey="value"
+            label={({ name, percent }) => {
+              const pct = Math.round((percent || 0) * 100);
+              return pct >= 4 ? `${name} ${pct}%` : null;
+            }}
+            labelLine={false}
+            onClick={(_data, index) => onSubcategoryClick?.(pieData[index].name)}
+            className="cursor-pointer"
+          >
+            {pieData.map((entry, index) => (
+              <Cell key={index} fill={entry.fill} stroke="white" strokeWidth={2} />
+            ))}
+          </Pie>
+          <Tooltip
+            formatter={(value) => formatCurrency(Number(value))}
+            contentStyle={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "13px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 /* ─── Income vs Expenses Over Time ─── */
 export function IncomeExpensesChart({
   monthlyData,
