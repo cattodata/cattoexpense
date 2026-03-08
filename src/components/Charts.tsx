@@ -146,6 +146,23 @@ export function CategoryBarChart({
 }
 
 /* ─── Subcategory Donut Chart ─── */
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderSubcategoryLabel(props: any) {
+  const { cx, cy, midAngle, outerRadius, name, percent } = props;
+  const RADIAN = Math.PI / 180;
+  const radius = (outerRadius || 80) + 18;
+  const x = (cx || 0) + radius * Math.cos(-(midAngle || 0) * RADIAN);
+  const y = (cy || 0) + radius * Math.sin(-(midAngle || 0) * RADIAN);
+  const pct = Math.round((percent || 0) * 100);
+  if (pct < 4) return null;
+  return (
+    <text x={x} y={y} fill="#64748b" textAnchor={x > (cx || 0) ? "start" : "end"} dominantBaseline="central" fontSize={11} fontWeight={600}>
+      {name} {pct}%
+    </text>
+  );
+}
+
 export function SubcategoryDonutChart({
   subcategories,
   categoryName,
@@ -163,24 +180,21 @@ export function SubcategoryDonutChart({
   }));
 
   return (
-    <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-[var(--catto-slate-100)]">
-      <h4 className="text-sm font-bold text-[var(--catto-slate-500)] uppercase tracking-wider mb-4">
-        {getCategoryEmoji(categoryName)} {categoryName} — Subcategory Breakdown
+    <div>
+      <h4 className="text-sm font-bold text-[var(--catto-slate-700)] mb-3">
+        {getCategoryEmoji(categoryName)} Subcategory Breakdown
       </h4>
-      <ResponsiveContainer width="100%" height={260}>
+      <ResponsiveContainer width="100%" height={240}>
         <PieChart>
           <Pie
             data={pieData}
             cx="50%"
             cy="50%"
-            innerRadius={55}
-            outerRadius={85}
+            innerRadius={45}
+            outerRadius={75}
             paddingAngle={2}
             dataKey="value"
-            label={({ name, percent }) => {
-              const pct = Math.round((percent || 0) * 100);
-              return pct >= 4 ? `${name} ${pct}%` : null;
-            }}
+            label={renderSubcategoryLabel}
             labelLine={false}
             onClick={(_data, index) => onSubcategoryClick?.(pieData[index].name)}
             className="cursor-pointer"

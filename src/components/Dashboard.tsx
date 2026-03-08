@@ -433,78 +433,6 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
           />
         </div>
 
-        {/* Top Money Drains — full width */}
-        {activeResult.categoryBreakdown.length > 0 && (
-          <div className="bg-white rounded-xl border border-[var(--catto-slate-100)] shadow-xl p-4 sm:p-6 md:p-8">
-            <div className="flex items-center gap-2 mb-4 sm:mb-6">
-              <Download className="w-5 h-5 text-[var(--catto-orange-500)]" />
-              <h3 className="text-xl font-bold text-[var(--catto-slate-900)]">Top Money Drains 💸</h3>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {activeResult.categoryBreakdown.slice(0, 6).map((cat) => {
-                const catTxns = activeResult.transactions.filter((t) => t.category === cat.category);
-                const subMap = new Map<string, { total: number; count: number }>();
-                for (const t of catTxns) {
-                  const sub = t.subcategory || "Other";
-                  const existing = subMap.get(sub) || { total: 0, count: 0 };
-                  existing.total += Math.abs(t.amount);
-                  existing.count += 1;
-                  subMap.set(sub, existing);
-                }
-                const subs = Array.from(subMap.entries())
-                  .map(([name, data]) => ({ name, ...data }))
-                  .sort((a, b) => b.total - a.total);
-                const hasSubs = !(subs.length <= 1 && subs[0]?.name === "Other");
-
-                return (
-                  <div
-                    key={cat.category}
-                    className="p-4 rounded-xl border border-[var(--catto-slate-100)] hover:shadow-md transition-all cursor-pointer"
-                    onClick={() => setSelectedCategory(cat.category)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[var(--catto-primary-light)] flex items-center justify-center text-xl shrink-0">
-                        {getCategoryEmoji(cat.category)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[var(--catto-slate-900)]">{cat.category}</p>
-                        <p className="text-xs text-[var(--catto-slate-500)]">{cat.count} transactions</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-black text-[var(--catto-orange-600)]">
-                          ${cat.total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                        </p>
-                        <p className="text-xs text-[var(--catto-slate-400)]">{cat.percentage}%</p>
-                      </div>
-                    </div>
-                    {hasSubs && (
-                      <div className="mt-3 pt-3 border-t border-[var(--catto-slate-100)] space-y-1.5">
-                        {subs.slice(0, 4).map((sub) => (
-                          <div key={sub.name} className="flex items-center justify-between text-xs">
-                            <span className="text-[var(--catto-slate-600)] truncate flex-1">{sub.name}</span>
-                            <span className="text-[var(--catto-slate-500)] ml-2 tabular-nums">
-                              ${sub.total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                            </span>
-                            <span className="text-[var(--catto-slate-400)] ml-2 w-8 text-right">
-                              {cat.total > 0 ? Math.round((sub.total / cat.total) * 100) : 0}%
-                            </span>
-                          </div>
-                        ))}
-                        {subs.length > 4 && (
-                          <p className="text-xs text-[var(--catto-slate-400)] italic">+{subs.length - 4} more...</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Recurring Charges & Spending Spikes */}
-        <Insights recurring={activeResult.recurring} spikes={activeResult.spikes} />
-
         {/* Category Detail (click to expand) — Sub-Dashboard */}
         {selectedCategory && (() => {
           const catTransactions = activeResult.transactions.filter((t) => t.category === selectedCategory);
@@ -551,10 +479,10 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                 </div>
               </div>
 
-              {/* Subcategory breakdown: donut + cards */}
+              {/* Subcategory breakdown: donut + cards side by side */}
               {hasSubcategories && (
                 <div className="px-4 sm:px-8 py-4 sm:py-6 border-b border-[var(--catto-slate-100)] bg-[var(--catto-slate-50)]/50">
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                     {/* Subcategory Donut */}
                     <SubcategoryDonutChart
                       subcategories={subBreakdown}
@@ -562,9 +490,9 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                       onSubcategoryClick={(sub) => setCatSubcategoryFilter(catSubcategoryFilter === sub ? "all" : sub)}
                     />
                     {/* Subcategory Cards */}
-                    <div className="lg:col-span-2">
-                      <h4 className="text-sm font-bold text-[var(--catto-slate-500)] uppercase tracking-wider mb-4">Subcategories</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-[var(--catto-slate-700)] mb-3">Subcategories</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {subBreakdown.map((sub, idx) => (
                       <button
                         key={sub.name}
@@ -723,6 +651,78 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
             </div>
           );
         })()}
+
+        {/* Top Money Drains — full width */}
+        {activeResult.categoryBreakdown.length > 0 && (
+          <div className="bg-white rounded-xl border border-[var(--catto-slate-100)] shadow-xl p-4 sm:p-6 md:p-8">
+            <div className="flex items-center gap-2 mb-4 sm:mb-6">
+              <Download className="w-5 h-5 text-[var(--catto-orange-500)]" />
+              <h3 className="text-xl font-bold text-[var(--catto-slate-900)]">Top Money Drains 💸</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activeResult.categoryBreakdown.slice(0, 6).map((cat) => {
+                const catTxns = activeResult.transactions.filter((t) => t.category === cat.category);
+                const subMap = new Map<string, { total: number; count: number }>();
+                for (const t of catTxns) {
+                  const sub = t.subcategory || "Other";
+                  const existing = subMap.get(sub) || { total: 0, count: 0 };
+                  existing.total += Math.abs(t.amount);
+                  existing.count += 1;
+                  subMap.set(sub, existing);
+                }
+                const subs = Array.from(subMap.entries())
+                  .map(([name, data]) => ({ name, ...data }))
+                  .sort((a, b) => b.total - a.total);
+                const hasSubs = !(subs.length <= 1 && subs[0]?.name === "Other");
+
+                return (
+                  <div
+                    key={cat.category}
+                    className="p-4 rounded-xl border border-[var(--catto-slate-100)] hover:shadow-md transition-all cursor-pointer"
+                    onClick={() => setSelectedCategory(cat.category)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[var(--catto-primary-light)] flex items-center justify-center text-xl shrink-0">
+                        {getCategoryEmoji(cat.category)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-[var(--catto-slate-900)]">{cat.category}</p>
+                        <p className="text-xs text-[var(--catto-slate-500)]">{cat.count} transactions</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-black text-[var(--catto-orange-600)]">
+                          ${cat.total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </p>
+                        <p className="text-xs text-[var(--catto-slate-400)]">{cat.percentage}%</p>
+                      </div>
+                    </div>
+                    {hasSubs && (
+                      <div className="mt-3 pt-3 border-t border-[var(--catto-slate-100)] space-y-1.5">
+                        {subs.slice(0, 4).map((sub) => (
+                          <div key={sub.name} className="flex items-center justify-between text-xs">
+                            <span className="text-[var(--catto-slate-600)] truncate flex-1">{sub.name}</span>
+                            <span className="text-[var(--catto-slate-500)] ml-2 tabular-nums">
+                              ${sub.total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            </span>
+                            <span className="text-[var(--catto-slate-400)] ml-2 w-8 text-right">
+                              {cat.total > 0 ? Math.round((sub.total / cat.total) * 100) : 0}%
+                            </span>
+                          </div>
+                        ))}
+                        {subs.length > 4 && (
+                          <p className="text-xs text-[var(--catto-slate-400)] italic">+{subs.length - 4} more...</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Recurring Charges & Spending Spikes */}
+        <Insights recurring={activeResult.recurring} spikes={activeResult.spikes} />
 
         {/* Income vs Expenses Over Time (only when multi-month data) */}
         {hasMultipleMonths && activeMonth === "all" && (
