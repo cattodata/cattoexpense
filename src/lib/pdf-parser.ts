@@ -411,12 +411,19 @@ function isFeeOrChargeLine(description: string): boolean {
 
 async function extractTextFromPDF(arrayBuffer: ArrayBuffer): Promise<string[]> {
   const pdfjsLib = await import("pdfjs-dist");
-  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-    "pdfjs-dist/build/pdf.worker.min.mjs",
-    import.meta.url
-  ).toString();
 
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  // Try loading the worker — some mobile browsers (Safari) may fail with ESM workers
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+      "pdfjs-dist/build/pdf.worker.min.mjs",
+      import.meta.url
+    ).toString();
+  } catch {
+    // Disable worker — runs on main thread (slower but works everywhere)
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+  }
+
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer, disableAutoFetch: true }).promise;
   const lines: string[] = [];
 
   for (let i = 1; i <= pdf.numPages; i++) {

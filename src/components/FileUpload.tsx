@@ -74,8 +74,9 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
             }
             addParsedFile(file.name, bankName, transactions);
             setLoading(false);
-          } catch {
-            setError("Failed to parse PDF. Make sure it\u2019s a text-based PDF, not a scanned image.");
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : "Unknown error";
+            setError(`Failed to parse PDF: ${msg}. Make sure it\u2019s a text-based PDF, not a scanned image.`);
             setLoading(false);
           }
         };
