@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a7c8ef",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#121820",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<title>CattoData | Insights &amp; Export</title>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100">
+<div class="relative flex min-h-screen w-full flex-col overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<!-- Header Section -->
+<header class="flex items-center justify-between border-b border-primary/20 bg-white dark:bg-slate-900 px-6 py-3 lg:px-40">
+<div class="flex items-center gap-4 text-slate-900 dark:text-slate-100">
+<div class="flex items-center justify-center size-10 rounded-xl bg-primary text-white">
+<span class="material-symbols-outlined">pets</span>
+</div>
+<h2 class="text-xl font-bold leading-tight tracking-tight">CattoData</h2>
+</div>
+<div class="flex flex-1 justify-end gap-8 items-center">
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-slate-600 dark:text-slate-400 hover:text-primary font-medium text-sm transition-colors" href="#">Dashboard</a>
+<a class="text-primary font-bold text-sm" href="#">Insights</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-primary font-medium text-sm transition-colors" href="#">Export</a>
+<a class="text-slate-600 dark:text-slate-400 hover:text-primary font-medium text-sm transition-colors" href="#">Settings</a>
+</nav>
+<div class="flex gap-2">
+<button class="flex size-10 cursor-pointer items-center justify-center rounded-xl bg-primary/10 text-slate-700 dark:text-slate-300 hover:bg-primary/20 transition-all">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<button class="flex size-10 cursor-pointer items-center justify-center rounded-xl bg-primary/10 text-slate-700 dark:text-slate-300 hover:bg-primary/20 transition-all">
+<span class="material-symbols-outlined text-[20px]">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<main class="flex-1 px-6 py-8 lg:px-40">
+<!-- Breadcrumbs -->
+<div class="flex items-center gap-2 mb-6 text-sm">
+<span class="text-slate-400">Home</span>
+<span class="material-symbols-outlined text-xs text-slate-400">chevron_right</span>
+<span class="text-primary font-semibold">Insights &amp; Export</span>
+</div>
+<!-- Hero Header -->
+<div class="mb-10">
+<h1 class="text-4xl font-black tracking-tight text-slate-900 dark:text-white mb-2">Purr-fect Insights 🐾</h1>
+<p class="text-slate-500 dark:text-slate-400 text-lg">Your data is whispering sweet things in soft pastel blue.</p>
+</div>
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+<div class="bg-white dark:bg-slate-800 p-6 rounded-xl border border-primary/20 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-slate-500 font-medium">Total Purrs</span>
+<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">+12%</span>
+</div>
+<p class="text-3xl font-black text-slate-900 dark:text-white">1,284</p>
+</div>
+<div class="bg-white dark:bg-slate-800 p-6 rounded-xl border border-primary/20 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-slate-500 font-medium">Activity Level</span>
+<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">+5%</span>
+</div>
+<p class="text-3xl font-black text-slate-900 dark:text-white">High</p>
+</div>
+<div class="bg-white dark:bg-slate-800 p-6 rounded-xl border border-primary/20 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-slate-500 font-medium">Happiness Score</span>
+<span class="bg-emerald-100 text-emerald-700 px-2 py-1 rounded text-xs font-bold">+2%</span>
+</div>
+<p class="text-3xl font-black text-slate-900 dark:text-white">98%</p>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Left Column: AI Coaching -->
+<div class="lg:col-span-2 space-y-8">
+<section class="bg-primary/10 rounded-xl p-8 border-2 border-dashed border-primary/30">
+<div class="flex items-center gap-3 mb-6">
+<span class="material-symbols-outlined text-primary text-3xl">auto_awesome</span>
+<h3 class="text-2xl font-bold text-slate-800 dark:text-slate-100">AI Cat Coaching Suggestions</h3>
+</div>
+<div class="space-y-4">
+<div class="bg-white/80 dark:bg-slate-800/80 p-5 rounded-xl flex gap-4 items-start shadow-sm border border-primary/10">
+<div class="text-2xl">😺</div>
+<div>
+<p class="font-bold text-slate-900 dark:text-white mb-1">More Midday Naps!</p>
+<p class="text-slate-600 dark:text-slate-400 text-sm">Data shows activity peaks at 3 AM. Try shifting play sessions to 7 PM to encourage better sleep sync.</p>
+</div>
+</div>
+<div class="bg-white/80 dark:bg-slate-800/80 p-5 rounded-xl flex gap-4 items-start shadow-sm border border-primary/10">
+<div class="text-2xl">🧶</div>
+<div>
+<p class="font-bold text-slate-900 dark:text-white mb-1">Toy Rotation Alert</p>
+<p class="text-slate-600 dark:text-slate-400 text-sm">Interest in the 'Laser Pointer' has dropped by 40%. It's time to bring back the 'Feather Wand'!</p>
+</div>
+</div>
+<div class="bg-white/80 dark:bg-slate-800/80 p-5 rounded-xl flex gap-4 items-start shadow-sm border border-primary/10">
+<div class="text-2xl">🍗</div>
+<div>
+<p class="font-bold text-slate-900 dark:text-white mb-1">Snack Efficiency</p>
+<p class="text-slate-600 dark:text-slate-400 text-sm">Purr frequency increases by 22% when salmon treats are served. Consider a subscription!</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Export Section -->
+<section class="bg-white dark:bg-slate-800 rounded-xl p-8 border border-primary/20 shadow-sm">
+<div class="flex items-center gap-3 mb-6">
+<span class="material-symbols-outlined text-primary text-3xl">ios_share</span>
+<h3 class="text-2xl font-bold text-slate-800 dark:text-slate-100">Export Your Data</h3>
+</div>
+<p class="text-slate-500 dark:text-slate-400 mb-8">Take your data with you. We support multiple formats for all your analysis needs.</p>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<button class="flex items-center justify-between p-4 rounded-xl bg-primary/10 hover:bg-primary/20 transition-all border border-primary/20 group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">table_view</span>
+<div class="text-left">
+<p class="font-bold text-slate-900 dark:text-white">Export as CSV</p>
+<p class="text-xs text-slate-500">Perfect for Excel or Sheets</p>
+</div>
+</div>
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">download</span>
+</button>
+<button class="flex items-center justify-between p-4 rounded-xl bg-primary/10 hover:bg-primary/20 transition-all border border-primary/20 group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">picture_as_pdf</span>
+<div class="text-left">
+<p class="font-bold text-slate-900 dark:text-white">Visual Report (PDF)</p>
+<p class="text-xs text-slate-500">A beautiful summary with charts</p>
+</div>
+</div>
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">download</span>
+</button>
+<button class="flex items-center justify-between p-4 rounded-xl bg-primary/10 hover:bg-primary/20 transition-all border border-primary/20 group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">terminal</span>
+<div class="text-left">
+<p class="font-bold text-slate-900 dark:text-white">Raw JSON</p>
+<p class="text-xs text-slate-500">For the developer kitties</p>
+</div>
+</div>
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">download</span>
+</button>
+<button class="flex items-center justify-between p-4 rounded-xl bg-primary/10 hover:bg-primary/20 transition-all border border-primary/20 group">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">image</span>
+<div class="text-left">
+<p class="font-bold text-slate-900 dark:text-white">Infographic Pack</p>
+<p class="text-xs text-slate-500">Ready for social sharing</p>
+</div>
+</div>
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">download</span>
+</button>
+</div>
+</section>
+</div>
+<!-- Right Column: Settings & Danger Zone -->
+<div class="space-y-8">
+<!-- Quick Stats Mini -->
+<div class="bg-primary text-white p-6 rounded-xl shadow-lg relative overflow-hidden">
+<div class="relative z-10">
+<h4 class="font-bold text-lg mb-2">Storage Usage</h4>
+<div class="w-full bg-white/30 h-3 rounded-full mb-2">
+<div class="bg-white h-full rounded-full w-[45%]"></div>
+</div>
+<p class="text-sm font-medium">450MB of 1GB Used</p>
+</div>
+<span class="material-symbols-outlined absolute -bottom-4 -right-4 text-8xl opacity-10">cloud</span>
+</div>
+<!-- Info Card -->
+<div class="bg-white dark:bg-slate-800 p-6 rounded-xl border border-primary/20">
+<h4 class="font-bold text-slate-900 dark:text-white mb-4">Export Preferences</h4>
+<div class="space-y-4">
+<label class="flex items-center gap-3 cursor-pointer">
+<input checked="" class="rounded text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-sm text-slate-600 dark:text-slate-400">Include timestamp data</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer">
+<input checked="" class="rounded text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-sm text-slate-600 dark:text-slate-400">Anonymize cat names</span>
+</label>
+<label class="flex items-center gap-3 cursor-pointer">
+<input class="rounded text-primary focus:ring-primary" type="checkbox"/>
+<span class="text-sm text-slate-600 dark:text-slate-400">High-resolution charts</span>
+</label>
+</div>
+</div>
+<!-- Danger Zone -->
+<div class="bg-rose-50 dark:bg-rose-950/20 p-6 rounded-xl border border-rose-200 dark:border-rose-900/50">
+<div class="flex items-center gap-2 mb-4 text-rose-600">
+<span class="material-symbols-outlined">warning</span>
+<h4 class="font-bold uppercase tracking-widest text-sm">Danger Zone</h4>
+</div>
+<p class="text-xs text-rose-700 dark:text-rose-300 mb-6">Proceed with extreme caution. These actions are permanent and cannot be undone.</p>
+<div class="space-y-3">
+<button class="w-full bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/50 text-rose-600 py-3 rounded-xl font-bold text-sm hover:bg-rose-600 hover:text-white transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">delete_forever</span>
+                                    Wipe All Data
+                                </button>
+<button class="w-full bg-rose-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-rose-700 transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">cancel</span>
+                                    Deactivate Account
+                                </button>
+</div>
+</div>
+<!-- Footer Links -->
+<div class="text-center">
+<p class="text-xs text-slate-400">Need help? <a class="text-primary hover:underline font-medium" href="#">Contact Cat Support</a></p>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Illustration Section -->
+<footer class="px-6 py-12 lg:px-40 mt-12 bg-white dark:bg-slate-900 border-t border-primary/10">
+<div class="flex flex-col md:flex-row justify-between items-center gap-8">
+<div class="flex items-center gap-4">
+<div class="size-12 rounded-full bg-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">data_usage</span>
+</div>
+<div>
+<p class="font-bold text-slate-900 dark:text-white">CattoData Analytics</p>
+<p class="text-sm text-slate-500">Powered by advanced feline algorithms</p>
+</div>
+</div>
+<div class="flex gap-6">
+<a class="text-slate-400 hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">share</span></a>
+<a class="text-slate-400 hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">help_outline</span></a>
+<a class="text-slate-400 hover:text-primary transition-colors" href="#"><span class="material-symbols-outlined">mail</span></a>
+</div>
+</div>
+<div class="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 text-center text-xs text-slate-400">
+                    © 2024 CattoData Inc. Stay pawsome.
+                </div>
+</footer>
+</div>
+</div>
+</body></html>

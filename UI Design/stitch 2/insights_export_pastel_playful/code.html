@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Financial Insights &amp; Export</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#a7c7e7",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#13191f",
+                    },
+                    fontFamily: {
+                        "display": ["Plus Jakarta Sans", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<!-- Header / Nav -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-primary/20 px-6 py-4 lg:px-20">
+<div class="flex items-center gap-4 text-slate-900 dark:text-slate-100">
+<div class="size-8 flex items-center justify-center bg-primary rounded-lg overflow-hidden">
+<img alt="Financial Insights Logo" data-alt="Corporate financial services logo icon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5vXs0EXce6FLg8Ewg7O4e4t5gNwnN3tvIlnvOw71snHyV7PxDl_ly9WdgRiSe6XX_2uWQO_qb_rrJfRqBq_67-IUlbJOh8Lvp2ZM5ERbGwawBvHRxxRxxrt_Fqb5NcKB-JVYktOia6uEe_N8rTNXQHmJ3bxy3dAnMwqLc6IvKKwQ-ZDRWeEbU6-_SuYC-_Qk3NGdURkBUyPcKlHXoDUy--1WkEXnANF0Ccn56kN_QZ3gVF9qZbrMXBn5uthhoMpSULY4ipGoUt78"/>
+</div>
+<h2 class="text-lg font-bold leading-tight tracking-tight">FinPastel</h2>
+</div>
+<div class="flex flex-1 justify-end gap-4 items-center">
+<button class="flex items-center justify-center rounded-full h-10 w-10 bg-primary/20 text-slate-900 dark:text-slate-100 hover:bg-primary/40 transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-primary" data-alt="User profile avatar circle" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCrfu_CGJmTYdbSzo2eUBoyhB_aJiHqhJCyoF-vzhycJbxEv5iFWUJH_xMK_nafEFeB-RjUbhoefCs6-7I1WzP5AXqnDY11x8w4hAwBifclbDPgqGHBnrVoOABZMnTshsc0-PDxM78PNfa_rWx11DroRfq72QqBZAPqlJi6MyZ1QAT4JYFGGs0BtKgypzDMPeEK4MqyahIYdt4Tzkht8iKcOBZvUXpS1ZrWuMivdeON3146nWaKz9GlKZ0SZ5Q8eWwN8ScAYYG8odM");'></div>
+</div>
+</header>
+<div class="flex flex-1 flex-col lg:flex-row">
+<!-- Sidebar -->
+<aside class="w-full lg:w-64 flex flex-col border-r border-primary/10 p-6 gap-6">
+<div class="flex flex-col gap-2">
+<div class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-primary/10 cursor-pointer">
+<span class="material-symbols-outlined text-primary">dashboard</span>
+<p class="text-sm font-semibold">Dashboard</p>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/20 text-slate-900 dark:text-slate-100 cursor-pointer">
+<span class="material-symbols-outlined text-primary">analytics</span>
+<p class="text-sm font-bold">Insights</p>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-primary/10 cursor-pointer">
+<span class="material-symbols-outlined text-primary">file_download</span>
+<p class="text-sm font-semibold">Exports</p>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-primary/10 cursor-pointer">
+<span class="material-symbols-outlined text-primary">settings</span>
+<p class="text-sm font-semibold">Settings</p>
+</div>
+</div>
+<!-- AI Coaching Section -->
+<div class="mt-auto p-5 bg-white dark:bg-slate-800 rounded-xl border border-primary/20 shadow-sm">
+<div class="flex items-center gap-2 mb-2">
+<span class="text-2xl">🤖</span>
+<span class="font-bold text-sm">AI Coach</span>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed mb-3">
+                        "Psst! You're doing great. Want to see where you can save more?"
+                    </p>
+<button class="w-full py-2 bg-primary text-slate-900 font-bold text-xs rounded-lg hover:brightness-95 transition-all">
+                        Chat with Coach
+                    </button>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 p-6 lg:p-10 space-y-8 max-w-5xl mx-auto w-full">
+<!-- Welcome Section -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<div>
+<h1 class="text-3xl font-bold tracking-tight">Financial Insights 🐱</h1>
+<p class="text-slate-500 dark:text-slate-400 mt-1">Personalized tips to keep your wallet happy.</p>
+</div>
+<div class="flex gap-2">
+<button class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-primary/30 rounded-lg text-sm font-bold shadow-sm hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-base">picture_as_pdf</span> PDF
+                        </button>
+<button class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-primary/30 rounded-lg text-sm font-bold shadow-sm hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-base">csv</span> CSV
+                        </button>
+</div>
+</div>
+<!-- Metrics Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="bg-primary/10 border border-primary/20 p-6 rounded-xl">
+<p class="text-sm font-medium opacity-70">Monthly Savings</p>
+<p class="text-2xl font-bold mt-1">$1,420.00</p>
+<span class="text-xs font-bold text-green-600 dark:text-green-400 flex items-center gap-1 mt-2">
+<span class="material-symbols-outlined text-xs">trending_up</span> +14% this month
+                        </span>
+</div>
+<div class="bg-white dark:bg-slate-800 border border-primary/10 p-6 rounded-xl shadow-sm">
+<p class="text-sm font-medium opacity-70">Top Category</p>
+<p class="text-2xl font-bold mt-1">Lifestyle</p>
+<span class="text-xs font-bold text-slate-400 flex items-center gap-1 mt-2">
+                             28% of total spending
+                        </span>
+</div>
+<div class="bg-white dark:bg-slate-800 border border-primary/10 p-6 rounded-xl shadow-sm">
+<p class="text-sm font-medium opacity-70">Budget Status</p>
+<p class="text-2xl font-bold mt-1 text-primary">On Track ✨</p>
+<span class="text-xs font-bold text-slate-400 flex items-center gap-1 mt-2">
+                             $450 left for fun
+                        </span>
+</div>
+</div>
+<!-- Saving Suggestions Section -->
+<section class="space-y-4">
+<h3 class="text-lg font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">lightbulb</span> Smart Saving Tips
+                    </h3>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/40 transition-all cursor-default">
+<div class="text-3xl p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm">☕</div>
+<div>
+<h4 class="font-bold text-sm">Brew at Home</h4>
+<p class="text-xs text-slate-500 mt-1 leading-relaxed">You spent $120 on coffee this month. Making it at home could save you $90!</p>
+</div>
+</div>
+<div class="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/40 transition-all cursor-default">
+<div class="text-3xl p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm">🍔</div>
+<div>
+<h4 class="font-bold text-sm">Meal Prep Sunday</h4>
+<p class="text-xs text-slate-500 mt-1 leading-relaxed">Eating out was your biggest spike. Preparing meals can cut costs by 30%.</p>
+</div>
+</div>
+<div class="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/40 transition-all cursor-default">
+<div class="text-3xl p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm">📺</div>
+<div>
+<h4 class="font-bold text-sm">Unused Subscriptions</h4>
+<p class="text-xs text-slate-500 mt-1 leading-relaxed">We found 2 streaming services you haven't opened in 45 days. Cancel?</p>
+</div>
+</div>
+<div class="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/40 transition-all cursor-default">
+<div class="text-3xl p-2 bg-white dark:bg-slate-800 rounded-lg shadow-sm">🚶</div>
+<div>
+<h4 class="font-bold text-sm">Walk the Short Trips</h4>
+<p class="text-xs text-slate-500 mt-1 leading-relaxed">Save on ride-shares for trips under 2 miles. Good for the heart &amp; the wallet!</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Visual Insight -->
+<div class="p-6 bg-white dark:bg-slate-800 rounded-xl border border-primary/10 shadow-sm">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-bold">Weekly Spending Habits</h3>
+<select class="text-xs border-primary/20 rounded-lg bg-background-light dark:bg-background-dark outline-none focus:ring-1 focus:ring-primary">
+<option>Last 7 Days</option>
+<option>Last 30 Days</option>
+</select>
+</div>
+<div class="grid grid-cols-7 gap-2 lg:gap-4 items-end h-48 px-2">
+<div class="flex flex-col items-center gap-2 h-full justify-end">
+<div class="w-full bg-primary/30 rounded-t-lg" style="height: 60%;"></div>
+<span class="text-[10px] font-bold text-slate-400">Mon</span>
+</div>
+<div class="flex flex-col items-center gap-2 h-full justify-end">
+<div class="w-full bg-primary rounded-t-lg" style="height: 85%;"></div>
+<span class="text-[10px] font-bold text-slate-400">Tue</span>
+</div>
+<div class="flex flex-col items-center gap-2 h-full justify-end">
+<div class="w-full bg-primary/40 rounded-t-lg" style="height: 45%;"></div>
+<span class="text-[10px] font-bold text-slate-400">Wed</span>
+</div>
+<div class="flex flex-col items-center gap-2 h-full justify-end">
+<div class="w-full bg-primary/30 rounded-t-lg" style="height: 70%;"></div>
+<span class="text-[10px] font-bold text-slate-400">Thu</span>
+</div>
+<div class="flex flex-col items-center gap-2 h-full justify-end">
+<div class="w-full bg-primary/20 rounded-t-lg" style="height: 30%;"></div>
+<span class="text-[10px] font-bold text-slate-400">Fri</span>
+</div>
+<div class="flex flex-col items-center gap-2 h-full justify-end">
+<div class="w-full bg-primary rounded-t-lg" style="height: 100%;"></div>
+<span class="text-[10px] font-bold text-slate-400">Sat</span>
+</div>
+<div class="flex flex-col items-center gap-2 h-full justify-end">
+<div class="w-full bg-primary/50 rounded-t-lg" style="height: 55%;"></div>
+<span class="text-[10px] font-bold text-slate-400">Sun</span>
+</div>
+</div>
+</div>
+<!-- Destructive Action Section -->
+<div class="pt-10 border-t border-primary/20 flex flex-col items-center text-center gap-4">
+<div class="max-w-md">
+<h4 class="font-bold text-lg">Finished for today?</h4>
+<p class="text-sm text-slate-500 mt-2 italic">For your safety, we recommend clearing session data if you're on a shared device.</p>
+</div>
+<button class="group flex items-center gap-3 px-8 py-4 bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 font-bold rounded-2xl border-2 border-red-100 dark:border-red-900/30 hover:bg-red-600 hover:text-white dark:hover:bg-red-600 dark:hover:text-white transition-all shadow-lg hover:shadow-red-200">
+<span class="text-xl group-hover:scale-125 transition-transform">🪄</span>
+<span>Wipe Data &amp; Close Session</span>
+</button>
+<p class="text-[10px] uppercase tracking-widest text-slate-400 font-bold mt-2">✨ Powered by SecurePastel AI ✨</p>
+</div>
+</main>
+</div>
+</div>
+</div>
+</body></html>
