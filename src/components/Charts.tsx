@@ -18,14 +18,6 @@ import type { CategoryBreakdown, MonthlyData, Transaction } from "@/lib/types";
 import { CATEGORY_COLORS } from "@/lib/categorizer";
 import { getCategoryEmoji } from "@/lib/category-emoji";
 
-interface ChartsProps {
-  categoryBreakdown: CategoryBreakdown[];
-  monthlyData: MonthlyData[];
-  totalIncome: number;
-  incomeTransactions: Transaction[];
-  onCategoryClick?: (category: string) => void;
-}
-
 /* Fallback palette for categories not in CATEGORY_COLORS */
 const FALLBACK_COLORS = [
   "#93c5fd", "#fbbf24", "#c4b5fd", "#86efac", "#fca5a5",
@@ -58,117 +50,76 @@ function renderCustomLabel(props: any) {
   );
 }
 
-export default function Charts({ categoryBreakdown, monthlyData, totalIncome, incomeTransactions, onCategoryClick }: ChartsProps) {
+/* ─── Expense Breakdown (Donut) ─── */
+export function ExpenseBreakdownChart({
+  categoryBreakdown,
+  onCategoryClick,
+}: {
+  categoryBreakdown: CategoryBreakdown[];
+  onCategoryClick?: (category: string) => void;
+}) {
   const pieData = categoryBreakdown.map((c, i) => ({
     name: c.category,
     value: c.total,
     fill: getCategoryColor(c.category, i),
   }));
 
-  const barData = categoryBreakdown.map((c, i) => ({
-    name: `${getCategoryEmoji(c.category)} ${c.category}`,
-    fullName: c.category,
-    total: c.total,
-    fill: getCategoryColor(c.category, i),
-  }));
+  return (
+    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]">
+      <h3 className="text-xl font-bold text-[var(--catto-slate-900)] mb-6">Expense Breakdown</h3>
+      <ResponsiveContainer width="100%" height={320}>
+        <PieChart>
+          <Pie
+            data={pieData}
+            cx="50%"
+            cy="50%"
+            innerRadius={65}
+            outerRadius={100}
+            paddingAngle={2}
+            dataKey="value"
+            label={renderCustomLabel}
+            labelLine={false}
+            onClick={(_data, index) => onCategoryClick?.(pieData[index].name)}
+            className="cursor-pointer"
+          >
+            {pieData.map((entry, index) => (
+              <Cell key={index} fill={entry.fill} stroke="white" strokeWidth={2} />
+            ))}
+          </Pie>
+          <Tooltip
+            formatter={(value) => formatCurrency(Number(value))}
+            contentStyle={{
+              background: "white",
+              border: "1px solid #e2e8f0",
+              borderRadius: "12px",
+              fontSize: "13px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            }}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
+/* ─── Income vs Expenses Over Time ─── */
+export function IncomeExpensesChart({
+  monthlyData,
+  totalIncome,
+  incomeTransactions,
+}: {
+  monthlyData: MonthlyData[];
+  totalIncome: number;
+  incomeTransactions: Transaction[];
+}) {
   const timelineData = monthlyData.map((m) => ({
     ...m,
     monthLabel: new Date(m.month + "-01").toLocaleDateString(undefined, { month: "short", year: "2-digit" }),
   }));
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* Expense Breakdown (Donut) — with outside labels */}
+    <>
       <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]">
-        <h3 className="text-xl font-bold text-[var(--catto-slate-900)] mb-6">Expense Breakdown</h3>
-        <ResponsiveContainer width="100%" height={320}>
-          <PieChart>
-            <Pie
-              data={pieData}
-              cx="50%"
-              cy="50%"
-              innerRadius={65}
-              outerRadius={100}
-              paddingAngle={2}
-              dataKey="value"
-              label={renderCustomLabel}
-              labelLine={false}
-              onClick={(_data, index) => onCategoryClick?.(pieData[index].name)}
-              className="cursor-pointer"
-            >
-              {pieData.map((entry, index) => (
-                <Cell key={index} fill={entry.fill} stroke="white" strokeWidth={2} />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(value) => formatCurrency(Number(value))}
-              contentStyle={{
-                background: "white",
-                border: "1px solid #e2e8f0",
-                borderRadius: "12px",
-                fontSize: "13px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Spending per Category (Bar Chart) */}
-      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]">
-        <h3 className="text-xl font-bold text-[var(--catto-slate-900)] mb-6">Spending per Category</h3>
-        <ResponsiveContainer width="100%" height={380}>
-          <BarChart data={barData} margin={{ bottom: 90 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-            <XAxis
-              dataKey="name"
-              tick={{ fontSize: 11, fill: "#94a3b8" }}
-              angle={-40}
-              textAnchor="end"
-              height={100}
-              interval={0}
-              axisLine={{ stroke: "#e2e8f0" }}
-              tickLine={false}
-            />
-            <YAxis
-              tick={{ fontSize: 11, fill: "#94a3b8" }}
-              tickFormatter={formatCurrency}
-              axisLine={false}
-              tickLine={false}
-              width={65}
-            />
-            <Tooltip
-              formatter={(value) => formatCurrency(Number(value))}
-              labelFormatter={(_label, payload) => {
-                const entry = payload?.[0]?.payload as { fullName?: string } | undefined;
-                const cat = entry?.fullName || String(_label);
-                return `${getCategoryEmoji(cat)} ${cat}`;
-              }}
-              contentStyle={{
-                background: "white",
-                border: "1px solid #e2e8f0",
-                borderRadius: "12px",
-                fontSize: "13px",
-                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-              }}
-            />
-            <Bar
-              dataKey="total"
-              radius={[6, 6, 0, 0]}
-              onClick={(_data, index) => onCategoryClick?.(barData[index].fullName)}
-              className="cursor-pointer"
-            >
-              {barData.map((entry, index) => (
-                <Cell key={index} fill={entry.fill} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* Income vs Expenses Over Time */}
-      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)] lg:col-span-2">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4 sm:mb-6">
           <h3 className="text-lg sm:text-xl font-bold text-[var(--catto-slate-900)]">Income vs Expenses Over Time 📊</h3>
           <div className="flex items-center gap-4 text-sm">
@@ -186,29 +137,9 @@ export default function Charts({ categoryBreakdown, monthlyData, totalIncome, in
           {timelineData.length <= 1 ? (
             <BarChart data={timelineData} margin={{ left: 10, right: 10, top: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis
-                dataKey="monthLabel"
-                tick={{ fontSize: 12, fill: "#94a3b8" }}
-                axisLine={{ stroke: "#e2e8f0" }}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: "#94a3b8" }}
-                tickFormatter={formatCurrency}
-                axisLine={false}
-                tickLine={false}
-                width={65}
-              />
-              <Tooltip
-                formatter={(value) => formatCurrency(Number(value))}
-                contentStyle={{
-                  background: "white",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "12px",
-                  fontSize: "13px",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                }}
-              />
+              <XAxis dataKey="monthLabel" tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={{ stroke: "#e2e8f0" }} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={formatCurrency} axisLine={false} tickLine={false} width={65} />
+              <Tooltip formatter={(value) => formatCurrency(Number(value))} contentStyle={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "13px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
               <Bar dataKey="income" name="Income" fill="#34d399" radius={[6, 6, 0, 0]} barSize={60} />
               <Bar dataKey="expenses" name="Expenses" fill="#f87171" radius={[6, 6, 0, 0]} barSize={60} />
             </BarChart>
@@ -225,49 +156,11 @@ export default function Charts({ categoryBreakdown, monthlyData, totalIncome, in
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis
-                dataKey="monthLabel"
-                tick={{ fontSize: 12, fill: "#94a3b8" }}
-                axisLine={{ stroke: "#e2e8f0" }}
-                tickLine={false}
-              />
-              <YAxis
-                tick={{ fontSize: 11, fill: "#94a3b8" }}
-                tickFormatter={formatCurrency}
-                axisLine={false}
-                tickLine={false}
-                width={65}
-              />
-              <Tooltip
-                formatter={(value) => formatCurrency(Number(value))}
-                contentStyle={{
-                  background: "white",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "12px",
-                  fontSize: "13px",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                }}
-              />
-              <Area
-                type="monotone"
-                dataKey="income"
-                name="Income"
-                stroke="#34d399"
-                fill="url(#incomeGrad)"
-                strokeWidth={2.5}
-                dot={{ r: 4, fill: "#34d399", stroke: "white", strokeWidth: 2 }}
-                activeDot={{ r: 6, fill: "#34d399", stroke: "white", strokeWidth: 2 }}
-              />
-              <Area
-                type="monotone"
-                dataKey="expenses"
-                name="Expenses"
-                stroke="#f87171"
-                fill="url(#expenseGrad)"
-                strokeWidth={2.5}
-                dot={{ r: 4, fill: "#f87171", stroke: "white", strokeWidth: 2 }}
-                activeDot={{ r: 6, fill: "#f87171", stroke: "white", strokeWidth: 2 }}
-              />
+              <XAxis dataKey="monthLabel" tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={{ stroke: "#e2e8f0" }} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={formatCurrency} axisLine={false} tickLine={false} width={65} />
+              <Tooltip formatter={(value) => formatCurrency(Number(value))} contentStyle={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "13px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
+              <Area type="monotone" dataKey="income" name="Income" stroke="#34d399" fill="url(#incomeGrad)" strokeWidth={2.5} dot={{ r: 4, fill: "#34d399", stroke: "white", strokeWidth: 2 }} activeDot={{ r: 6, fill: "#34d399", stroke: "white", strokeWidth: 2 }} />
+              <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#f87171" fill="url(#expenseGrad)" strokeWidth={2.5} dot={{ r: 4, fill: "#f87171", stroke: "white", strokeWidth: 2 }} activeDot={{ r: 6, fill: "#f87171", stroke: "white", strokeWidth: 2 }} />
             </AreaChart>
           )}
         </ResponsiveContainer>
@@ -275,7 +168,6 @@ export default function Charts({ categoryBreakdown, monthlyData, totalIncome, in
 
       {/* Income Sources */}
       {totalIncome > 0 && (() => {
-        // Group income by subcategory or description keyword
         const sourceMap = new Map<string, number>();
         for (const t of incomeTransactions) {
           const label = t.subcategory || t.category || "Other Income";
@@ -287,7 +179,7 @@ export default function Charts({ categoryBreakdown, monthlyData, totalIncome, in
         const INCOME_COLORS = ["#34d399", "#6ee7b7", "#a7f3d0", "#4ade80", "#86efac", "#bbf7d0"];
 
         return (
-          <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)] lg:col-span-2">
+          <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)] mt-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4 sm:mb-6">
               <h3 className="text-lg sm:text-xl font-bold text-[var(--catto-slate-900)]">Income Sources 💰</h3>
               <span className="text-lg font-black text-[var(--catto-green-600)]">
@@ -295,40 +187,16 @@ export default function Charts({ categoryBreakdown, monthlyData, totalIncome, in
               </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Donut chart */}
               <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
-                  <Pie
-                    data={incomeData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                    dataKey="value"
-                    label={({ name, percent }) => {
-                      const pct = Math.round((percent || 0) * 100);
-                      return pct >= 3 ? `${name} ${pct}%` : null;
-                    }}
-                    labelLine={false}
-                  >
+                  <Pie data={incomeData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value" label={({ name, percent }) => { const pct = Math.round((percent || 0) * 100); return pct >= 3 ? `${name} ${pct}%` : null; }} labelLine={false}>
                     {incomeData.map((_entry, index) => (
                       <Cell key={index} fill={INCOME_COLORS[index % INCOME_COLORS.length]} stroke="white" strokeWidth={2} />
                     ))}
                   </Pie>
-                  <Tooltip
-                    formatter={(value) => formatCurrency(Number(value))}
-                    contentStyle={{
-                      background: "white",
-                      border: "1px solid #e2e8f0",
-                      borderRadius: "12px",
-                      fontSize: "13px",
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-                    }}
-                  />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value))} contentStyle={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "13px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
                 </PieChart>
               </ResponsiveContainer>
-              {/* Source list */}
               <div className="flex flex-col justify-center gap-3">
                 {incomeData.map((item, i) => (
                   <div key={item.name} className="flex items-center gap-3">
@@ -343,6 +211,24 @@ export default function Charts({ categoryBreakdown, monthlyData, totalIncome, in
           </div>
         );
       })()}
+    </>
+  );
+}
+
+/* ─── Default export (backward compat) ─── */
+interface ChartsProps {
+  categoryBreakdown: CategoryBreakdown[];
+  monthlyData: MonthlyData[];
+  totalIncome: number;
+  incomeTransactions: Transaction[];
+  onCategoryClick?: (category: string) => void;
+}
+
+export default function Charts({ categoryBreakdown, monthlyData, totalIncome, incomeTransactions, onCategoryClick }: ChartsProps) {
+  return (
+    <div className="space-y-6">
+      <ExpenseBreakdownChart categoryBreakdown={categoryBreakdown} onCategoryClick={onCategoryClick} />
+      <IncomeExpensesChart monthlyData={monthlyData} totalIncome={totalIncome} incomeTransactions={incomeTransactions} />
     </div>
   );
 }
