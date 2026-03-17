@@ -409,7 +409,9 @@ function isFeeOrChargeLine(description: string): boolean {
   return /\b(?:fee|charge|interest|surcharge|levy|tax)\b/i.test(description);
 }
 
-async function extractTextFromPDF(arrayBuffer: ArrayBuffer): Promise<string[]> {
+interface PageItem { x: number; y: number; str: string }
+
+async function extractPageItems(arrayBuffer: ArrayBuffer): Promise<PageItem[][]> {
   const pdfjsLib = await import("pdfjs-dist");
 
   // Use CDN worker for maximum browser compatibility (including iOS Safari/Chrome)
@@ -417,32 +419,39 @@ async function extractTextFromPDF(arrayBuffer: ArrayBuffer): Promise<string[]> {
     "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
 
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  const lines: string[] = [];
+  const allPages: PageItem[][] = [];
 
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
 
-    // Collect text items with positions for adaptive Y-clustering
-    const pageItems: { x: number; y: number; str: string }[] = [];
+    const pageItems: PageItem[] = [];
     for (const item of content.items) {
       if (!("str" in item) || !item.str.trim()) continue;
       const tx =
         "transform" in item ? (item.transform as number[]) : [1, 0, 0, 1, 0, 0];
       pageItems.push({ x: tx[4], y: tx[5], str: item.str });
     }
+    allPages.push(pageItems);
+  }
 
+  return allPages;
+}
+
+function groupItemsIntoLines(allPages: PageItem[][], yThreshold: number): string[] {
+  const lines: string[] = [];
+
+  for (const pageItems of allPages) {
     // Sort by Y descending (PDF origin = bottom-left → top-down visual order)
-    pageItems.sort((a, b) => b.y - a.y);
+    const sorted = [...pageItems].sort((a, b) => b.y - a.y);
 
-    // Group items into lines — items within Y_THRESHOLD of each group's reference Y
+    // Group items into lines — items within yThreshold of each group's reference Y
     // (AMEX and some bank PDFs place items on the same visual line at slightly different Y)
-    const Y_THRESHOLD = 3;
-    let groupRefY = pageItems[0]?.y ?? 0;
-    let currentGroup: typeof pageItems = [];
+    let groupRefY = sorted[0]?.y ?? 0;
+    let currentGroup: PageItem[] = [];
 
-    for (const item of pageItems) {
-      if (currentGroup.length > 0 && Math.abs(item.y - groupRefY) > Y_THRESHOLD) {
+    for (const item of sorted) {
+      if (currentGroup.length > 0 && Math.abs(item.y - groupRefY) > yThreshold) {
         currentGroup.sort((a, b) => a.x - b.x);
         const lineText = currentGroup.map((it) => it.str).join(" ").trim();
         if (lineText) lines.push(lineText);
@@ -708,8 +717,21 @@ function extractTransactionsFromLines(lines: string[], bankName: string): RawTra
 export async function parsePDF(
   arrayBuffer: ArrayBuffer
 ): Promise<{ transactions: RawTransaction[]; rawLines: string[]; bankName: string }> {
-  const lines = await extractTextFromPDF(arrayBuffer);
+  const allPages = await extractPageItems(arrayBuffer);
+
+  // Try progressively larger Y-thresholds — mobile browsers often produce larger
+  // Y-gaps between text items on the same visual line than desktop browsers.
+  for (const threshold of [3, 5, 8]) {
+    const lines = groupItemsIntoLines(allPages, threshold);
+    const bankName = detectBank(lines);
+    const transactions = extractTransactionsFromLines(lines, bankName);
+    if (transactions.length > 0) {
+      return { transactions, rawLines: lines, bankName };
+    }
+  }
+
+  // All thresholds failed — return empty with best-effort lines
+  const lines = groupItemsIntoLines(allPages, 3);
   const bankName = detectBank(lines);
-  const transactions = extractTransactionsFromLines(lines, bankName);
-  return { transactions, rawLines: lines, bankName };
+  return { transactions: [], rawLines: lines, bankName };
 }
