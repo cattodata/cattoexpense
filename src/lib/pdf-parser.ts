@@ -429,7 +429,17 @@ async function extractPageItems(arrayBuffer: ArrayBuffer): Promise<PageItem[][]>
       // Normal horizontal text has transform [fontSize, 0, 0, fontSize, x, y]
       // Rotated text has non-zero tx[1] or tx[2]
       if (Math.abs(tx[1]) > 0.1 || Math.abs(tx[2]) > 0.1) continue;
-      pageItems.push({ x: tx[4], y: tx[5], str: item.str });
+
+      let str = item.str;
+      // CommBank PDFs render decimal points as spaces: "$43,400 00" → "$43,400.00", "5 90" → "5.90"
+      // Normalize items that look like amounts with a space instead of decimal point.
+      // Only applies to strings that are entirely amount-like (prevents false positives).
+      const trimStr = str.trim();
+      if (/\d\s\d{2}\s*$/.test(trimStr) && /^-?[$£€¥₹฿]?[\s-]?[\d,]+\s\d{2}\s*$/.test(trimStr)) {
+        str = str.replace(/(\d)\s(\d{2})\s*$/, "$1.$2");
+      }
+
+      pageItems.push({ x: tx[4], y: tx[5], str });
     }
     allPages.push(pageItems);
   }
