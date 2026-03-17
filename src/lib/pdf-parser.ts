@@ -425,6 +425,10 @@ async function extractPageItems(arrayBuffer: ArrayBuffer): Promise<PageItem[][]>
       if (!("str" in item) || !item.str.trim()) continue;
       const tx =
         "transform" in item ? (item.transform as number[]) : [1, 0, 0, 1, 0, 0];
+      // Filter out rotated/vertical text (e.g. CommBank margin codes like "38.724.1.3.ZZ396...")
+      // Normal horizontal text has transform [fontSize, 0, 0, fontSize, x, y]
+      // Rotated text has non-zero tx[1] or tx[2]
+      if (Math.abs(tx[1]) > 0.1 || Math.abs(tx[2]) > 0.1) continue;
       pageItems.push({ x: tx[4], y: tx[5], str: item.str });
     }
     allPages.push(pageItems);
@@ -728,7 +732,7 @@ export async function parsePDF(
   }
 
   // Strategy 2: Line-based regex extraction with adaptive Y-thresholds.
-  for (const threshold of [3, 5, 8, 12]) {
+  for (const threshold of [3, 5, 8, 12, 18]) {
     const lines = groupItemsIntoLines(allPages, threshold);
     const bn = detectBank(lines);
     const transactions = extractTransactionsFromLines(lines, bn);
@@ -794,16 +798,24 @@ function extractFromTableColumns(
     let bestRows: PageItem[][] = [];
     let bestCount = 0;
 
-    for (const yThresh of [3, 5, 8, 12]) {
+    for (const yThresh of [3, 5, 8, 12, 18]) {
       const rows = groupIntoRows(pageItems, yThresh);
-      // Count rows that have both a date on the left and an amount on the right
+      // Count rows that have both a date (anywhere in first few items) and an amount on the right
       let count = 0;
       for (const row of rows) {
         if (row.length < 2) continue;
         const sorted = [...row].sort((a, b) => a.x - b.x);
-        const leftStr = sorted[0].str;
-        const leftTwo = sorted.length >= 2 ? `${sorted[0].str} ${sorted[1].str}` : leftStr;
-        if (!startDate(leftStr) && !startDate(leftTwo)) continue;
+        // Scan first 4 items for a date
+        let hasDate = false;
+        for (let d = 0; d < Math.min(4, sorted.length); d++) {
+          const tryStr = sorted[d].str;
+          if (startDate(tryStr)) { hasDate = true; break; }
+          if (d + 1 < sorted.length) {
+            const tryTwo = `${sorted[d].str} ${sorted[d + 1].str}`;
+            if (startDate(tryTwo)) { hasDate = true; break; }
+          }
+        }
+        if (!hasDate) continue;
         // Check rightmost 1-2 items for amount
         const lastStr = sorted[sorted.length - 1].str.trim();
         if (looksLikeAmount(lastStr)) { count++; continue; }
@@ -854,15 +866,18 @@ function extractFromTableColumns(
       const amtVal = parseAmountValue(amountStr);
       if (amtVal === null || amtVal === 0) continue;
 
-      // ── Detect date from leftmost items ──
-      const leftStr = sorted[0].str;
-      const leftTwo = sorted.length >= 2 ? `${sorted[0].str} ${sorted[1].str}` : leftStr;
-
-      let dateRaw = startDate(leftStr);
-      let dateItems = dateRaw ? 1 : 0;
-      if (!dateRaw) {
-        dateRaw = startDate(leftTwo);
-        dateItems = dateRaw ? 2 : 0;
+      // ── Detect date from first few items (leftmost) ──
+      let dateRaw: string | null = null;
+      let dateItems = 0;
+      for (let d = 0; d < Math.min(4, sorted.length); d++) {
+        const tryStr = sorted[d].str;
+        const found1 = startDate(tryStr);
+        if (found1) { dateRaw = found1; dateItems = d + 1; break; }
+        if (d + 1 < sorted.length) {
+          const tryTwo = `${sorted[d].str} ${sorted[d + 1].str}`;
+          const found2 = startDate(tryTwo);
+          if (found2) { dateRaw = found2; dateItems = d + 2; break; }
+        }
       }
 
       if (!dateRaw) {

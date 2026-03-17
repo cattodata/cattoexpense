@@ -66,9 +66,11 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
               setLoading(false);
               return;
             }
-            const { transactions, bankName } = await parsePDF(arrayBuffer);
+            const { transactions, rawLines, bankName } = await parsePDF(arrayBuffer);
             if (transactions.length === 0) {
-              setError("No transactions found in this PDF. Make sure it\u2019s a text-based bank statement.");
+              const sample = rawLines.slice(0, 30).map((l, i) => `${i + 1}: ${l}`).join("\n");
+              console.log("[CattoExpense] PDF raw lines:\n" + rawLines.join("\n"));
+              setError(`No transactions found in this PDF (detected: ${bankName || "Unknown"}).\n\nFirst 30 lines extracted:\n${sample}`);
               setLoading(false);
               return;
             }
@@ -340,9 +342,17 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
       )}
 
       {error && (
-        <div className="flex items-center gap-2 text-[var(--catto-red-600)] bg-[var(--catto-red-50)] rounded-xl px-4 py-3 text-sm border border-red-100">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
+        <div className="text-[var(--catto-red-600)] bg-[var(--catto-red-50)] rounded-xl px-4 py-3 text-sm border border-red-100">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error.split("\n")[0]}</span>
+          </div>
+          {error.includes("\n") && (
+            <details className="mt-2">
+              <summary className="cursor-pointer text-xs text-[var(--catto-slate-500)] hover:text-[var(--catto-slate-700)]">Show debug info</summary>
+              <pre className="mt-2 text-xs text-[var(--catto-slate-600)] bg-white/50 rounded-lg p-3 overflow-x-auto max-h-60 overflow-y-auto whitespace-pre-wrap">{error.split("\n").slice(2).join("\n")}</pre>
+            </details>
+          )}
         </div>
       )}
     </div>
