@@ -242,6 +242,9 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /joosikhoisa|\bhbaf\b/i,
     /maiseuteoinbeoiseuteujoos/i,
     /ice\s?kirin/i,
+    /jcmi\s?investment/i,
+    /hmt\s?pty/i,
+    /tangerpay/i,
   ],
   "Groceries": [
     /grocery|supermarket|walmart|costco|trader|whole\s?foods|aldi|lidl|kroger|safeway|publix|big\s?c|tesco|makro|tops|7-?eleven|\bmarket\b|minimart|fresh/i,
@@ -511,12 +514,12 @@ export function categorizeTransaction(description: string, amount?: number): str
   }
 
   // APPLE.COM/BILL = iCloud, Apple One, AppleCare → always Subscriptions
-  if (/apple\.com\/bill/i.test(cleaned)) {
+  if (/apple[.\s]+com\/bill/i.test(cleaned)) {
     return "Subscriptions";
   }
 
-  // Apple.com: large purchases (>$200) are hardware, smaller ones are services/subscriptions
-  if (/apple\.com/i.test(cleaned)) {
+  // Apple.com or Apple Com/Au: large purchases (>$200) are hardware, smaller ones are services/subscriptions
+  if (/apple[.\s]+com/i.test(cleaned)) {
     return Math.abs(amount ?? 0) > 200 ? "Shopping" : "Subscriptions";
   }
 
