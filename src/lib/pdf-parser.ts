@@ -110,14 +110,9 @@ const EN_MONTHS: Record<string, string> = {
   july: "07", august: "08", september: "09", october: "10", november: "11", december: "12",
 };
 
-/** Data-cleaning rule: year 2026 is a parsing artifact — should be 2025. */
-function fix2026(dateStr: string): string {
-  return dateStr.startsWith("2026-") ? "2025" + dateStr.slice(4) : dateStr;
-}
-
 function normalizeDate(raw: string, fallbackYear?: number, closingMonth?: number): string {
   const trimmed = raw.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return fix2026(trimmed);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
 
   // Thai date: DD <ThaiMonth> YYYY(BE)
   for (const [thaiMonth, mm] of Object.entries(THAI_MONTHS)) {
@@ -171,7 +166,7 @@ function normalizeDate(raw: string, fallbackYear?: number, closingMonth?: number
       const txMonth = parseInt(mm);
       if (closingMonth && txMonth > closingMonth) yr -= 1;
     }
-    return fix2026(`${yr}-${mm}-${dd}`);
+    return `${yr}-${mm}-${dd}`;
   }
 
   const slashMatch = trimmed.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
@@ -183,15 +178,15 @@ function normalizeDate(raw: string, fallbackYear?: number, closingMonth?: number
     yr = thaiYearToAD(yr);
     const numA = parseInt(a);
     const numB = parseInt(b);
-    if (numA > 12) return fix2026(`${yr}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`);
-    if (numB > 12) return fix2026(`${yr}-${a.padStart(2, "0")}-${b.padStart(2, "0")}`);
-    return fix2026(`${yr}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`);
+    if (numA > 12) return `${yr}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
+    if (numB > 12) return `${yr}-${a.padStart(2, "0")}-${b.padStart(2, "0")}`;
+    return `${yr}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
   }
 
   // Last resort — only use Date() parser for strings that contain a year
   if (/\b\d{4}\b/.test(trimmed)) {
     const d = new Date(trimmed);
-    if (!isNaN(d.getTime())) return fix2026(d.toISOString().slice(0, 10));
+    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
   }
   return "";
 }
@@ -719,19 +714,206 @@ export async function parsePDF(
 ): Promise<{ transactions: RawTransaction[]; rawLines: string[]; bankName: string }> {
   const allPages = await extractPageItems(arrayBuffer);
 
-  // Try progressively larger Y-thresholds — mobile browsers often produce larger
-  // Y-gaps between text items on the same visual line than desktop browsers.
-  for (const threshold of [3, 5, 8]) {
+  // Build lines (for metadata detection shared by all strategies)
+  const metaLines = groupItemsIntoLines(allPages, 5);
+  const bankName = detectBank(metaLines);
+  const creditCard = isCreditCardStatement(metaLines);
+  const { year: statementYear, closingMonth } = detectStatementYear(metaLines);
+
+  // Strategy 1: Column-position-based table extraction (most universal).
+  // Uses X/Y positions of text items directly — works for any tabular PDF.
+  const columnResult = extractFromTableColumns(allPages, bankName, creditCard, statementYear, closingMonth);
+  if (columnResult.length > 0) {
+    return { transactions: columnResult, rawLines: metaLines, bankName };
+  }
+
+  // Strategy 2: Line-based regex extraction with adaptive Y-thresholds.
+  for (const threshold of [3, 5, 8, 12]) {
     const lines = groupItemsIntoLines(allPages, threshold);
-    const bankName = detectBank(lines);
-    const transactions = extractTransactionsFromLines(lines, bankName);
+    const bn = detectBank(lines);
+    const transactions = extractTransactionsFromLines(lines, bn);
     if (transactions.length > 0) {
-      return { transactions, rawLines: lines, bankName };
+      return { transactions, rawLines: lines, bankName: bn };
     }
   }
 
-  // All thresholds failed — return empty with best-effort lines
-  const lines = groupItemsIntoLines(allPages, 3);
-  const bankName = detectBank(lines);
-  return { transactions: [], rawLines: lines, bankName };
+  return { transactions: [], rawLines: metaLines, bankName };
+}
+
+// ─── Column-Position-Based Table Extraction ───
+// Instead of joining text items into lines and regex-ing, this approach uses
+// the spatial X/Y positions of PDF text items to identify table columns:
+//   leftmost items → date, rightmost item → amount, middle → description.
+// This is inherently more robust than regex because it mirrors how all bank
+// statements are structured: a table with Date | Description | Amount columns.
+
+function groupIntoRows(items: PageItem[], yThreshold: number): PageItem[][] {
+  if (items.length === 0) return [];
+  const sorted = [...items].sort((a, b) => b.y - a.y);
+  const rows: PageItem[][] = [];
+  let current: PageItem[] = [sorted[0]];
+  let refY = sorted[0].y;
+
+  for (let i = 1; i < sorted.length; i++) {
+    const item = sorted[i];
+    if (Math.abs(item.y - refY) > yThreshold) {
+      rows.push(current);
+      current = [];
+      refY = item.y;
+    }
+    current.push(item);
+  }
+  if (current.length > 0) rows.push(current);
+  return rows;
+}
+
+/** Check if a string looks like a monetary amount (has .XX decimal or currency sign) */
+function looksLikeAmount(str: string): boolean {
+  const s = str.trim();
+  // Must have digits
+  if (!/\d/.test(s)) return false;
+  // Prefer .XX format (most bank amounts)
+  if (/\d\.\d{2}\s*[-)]?\s*$/.test(s)) return true;
+  // Currency-prefixed
+  if (/[$£€¥₹฿]/.test(s) && /\d/.test(s)) return true;
+  return false;
+}
+
+function extractFromTableColumns(
+  allPages: PageItem[][],
+  bankName: string,
+  creditCard: boolean,
+  statementYear: number | undefined,
+  closingMonth: number | undefined
+): RawTransaction[] {
+  const transactions: RawTransaction[] = [];
+  let lastDate = "";
+
+  for (const pageItems of allPages) {
+    // Try multiple Y-thresholds for row grouping
+    let bestRows: PageItem[][] = [];
+    let bestCount = 0;
+
+    for (const yThresh of [3, 5, 8, 12]) {
+      const rows = groupIntoRows(pageItems, yThresh);
+      // Count rows that have both a date on the left and an amount on the right
+      let count = 0;
+      for (const row of rows) {
+        if (row.length < 2) continue;
+        const sorted = [...row].sort((a, b) => a.x - b.x);
+        const leftStr = sorted[0].str;
+        const leftTwo = sorted.length >= 2 ? `${sorted[0].str} ${sorted[1].str}` : leftStr;
+        if (!startDate(leftStr) && !startDate(leftTwo)) continue;
+        // Check rightmost 1-2 items for amount
+        const lastStr = sorted[sorted.length - 1].str.trim();
+        if (looksLikeAmount(lastStr)) { count++; continue; }
+        if (sorted.length >= 3) {
+          const last2 = `${sorted[sorted.length - 2].str} ${lastStr}`;
+          if (looksLikeAmount(last2)) { count++; continue; }
+        }
+      }
+      if (count > bestCount) {
+        bestCount = count;
+        bestRows = rows;
+      }
+    }
+
+    if (bestCount === 0) continue;
+
+    for (const row of bestRows) {
+      if (row.length < 2) continue;
+      const sorted = [...row].sort((a, b) => a.x - b.x);
+
+      // ── Detect amount from rightmost items ──
+      let amountStr = "";
+      let amountItems = 0;
+      const lastStr = sorted[sorted.length - 1].str.trim();
+
+      // Handle CBA debit format: "110.00" then "(" as separate items
+      if ((lastStr === "(" || lastStr === "()" ) && sorted.length >= 3) {
+        const prevStr = sorted[sorted.length - 2].str.trim();
+        if (looksLikeAmount(prevStr + " (")) {
+          amountStr = prevStr + " (";
+          amountItems = 2;
+        }
+      }
+      if (!amountItems && looksLikeAmount(lastStr)) {
+        amountStr = lastStr;
+        amountItems = 1;
+      }
+      // Try last 2 items combined (e.g., "$" and "5.90" as separate items)
+      if (!amountItems && sorted.length >= 3) {
+        const last2 = `${sorted[sorted.length - 2].str} ${lastStr}`;
+        if (looksLikeAmount(last2)) {
+          amountStr = last2;
+          amountItems = 2;
+        }
+      }
+      if (!amountItems) continue;
+
+      const amtVal = parseAmountValue(amountStr);
+      if (amtVal === null || amtVal === 0) continue;
+
+      // ── Detect date from leftmost items ──
+      const leftStr = sorted[0].str;
+      const leftTwo = sorted.length >= 2 ? `${sorted[0].str} ${sorted[1].str}` : leftStr;
+
+      let dateRaw = startDate(leftStr);
+      let dateItems = dateRaw ? 1 : 0;
+      if (!dateRaw) {
+        dateRaw = startDate(leftTwo);
+        dateItems = dateRaw ? 2 : 0;
+      }
+
+      if (!dateRaw) {
+        // Non-dated row with amount — could be a fee/charge, use lastDate
+        if (!lastDate) continue;
+        const fullText = sorted.map(i => i.str).join(" ");
+        if (!isFeeOrChargeLine(fullText)) continue;
+        const desc = sorted.slice(0, sorted.length - amountItems).map(i => i.str).join(" ").trim();
+        if (desc.length < 2) continue;
+        let amount = amtVal;
+        let isRefund = false;
+        if (creditCard) {
+          const isCr = isRefundOrCredit(desc, amountStr) || amtVal < 0;
+          if (isCardPayment(desc)) continue;
+          isRefund = isCr;
+          amount = isCr ? Math.abs(amount) : -Math.abs(amount);
+        }
+        transactions.push({ date: lastDate, amount, description: desc, source: bankName, isRefund: isRefund || undefined });
+        continue;
+      }
+
+      const date = normalizeDate(dateRaw, statementYear, closingMonth);
+      if (!date) continue;
+      lastDate = date;
+
+      // ── Description = items between date and amount ──
+      const descArr = sorted.slice(dateItems, sorted.length - amountItems);
+      let desc = descArr.map(i => i.str).join(" ").trim();
+      // Strip leading card-last-4 (e.g. "6211 ")
+      desc = desc.replace(/^\d{4}\s+/, "").trim();
+      if (desc.length < 2) continue;
+
+      // Full-line noise check
+      const fullLine = sorted.map(i => i.str).join(" ");
+      if (isNoiseLine(fullLine)) continue;
+      if (/\b(?:opening|closing|previous|current|available|running)\s+balance\b/i.test(desc)) continue;
+      if (/\bbalance\s+(?:brought|carried|forward|b\/f|c\/f)\b/i.test(desc)) continue;
+      if (/^(?:total|sub-?total|grand\s+total)\b/i.test(desc)) continue;
+
+      let amount = amtVal;
+      let isRefund = false;
+      if (creditCard) {
+        const isCr = isRefundOrCredit(desc, amountStr) || hasTrailingCR(fullLine, fullLine.lastIndexOf(amountStr), amountStr) || amtVal < 0;
+        if (isCardPayment(desc)) continue;
+        isRefund = isCr;
+        amount = isCr ? Math.abs(amount) : -Math.abs(amount);
+      }
+
+      transactions.push({ date, amount, description: desc, source: bankName, isRefund: isRefund || undefined });
+    }
+  }
+
+  return transactions;
 }

@@ -55,18 +55,13 @@ function thaiYearToAD(y: number): number {
   return y > 2400 ? y - 543 : y < 100 ? y + 2000 : y;
 }
 
-/** Data-cleaning rule: year 2026 is a parsing artifact — should be 2025. */
-function fix2026(dateStr: string): string {
-  return dateStr.startsWith("2026-") ? "2025" + dateStr.slice(4) : dateStr;
-}
-
 function parseDate(value: string): string {
   if (!value) return "";
   const trimmed = value.trim();
 
   // ISO format
   if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
-    return fix2026(trimmed.slice(0, 10));
+    return trimmed.slice(0, 10);
   }
 
   // DD/MM/YYYY or MM/DD/YYYY (with potential Buddhist Era year)
@@ -80,19 +75,19 @@ function parseDate(value: string): string {
     const numA = parseInt(a);
     const numB = parseInt(b);
     if (numA > 12) {
-      return fix2026(`${yr}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`);
+      return `${yr}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
     }
     if (numB > 12) {
-      return fix2026(`${yr}-${a.padStart(2, "0")}-${b.padStart(2, "0")}`);
+      return `${yr}-${a.padStart(2, "0")}-${b.padStart(2, "0")}`;
     }
     // Default: DD/MM/YYYY (consistent with PDF parser, correct for AU banks)
-    return fix2026(`${yr}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`);
+    return `${yr}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
   }
 
   // Try native parse as fallback
   const d = new Date(trimmed);
   if (!isNaN(d.getTime())) {
-    return fix2026(d.toISOString().slice(0, 10));
+    return d.toISOString().slice(0, 10);
   }
 
   return trimmed;
