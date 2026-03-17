@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   PieChart,
   Pie,
@@ -17,6 +18,17 @@ import {
 import type { CategoryBreakdown, MonthlyData, Transaction } from "@/lib/types";
 import { CATEGORY_COLORS } from "@/lib/categorizer";
 import { getCategoryEmoji } from "@/lib/category-emoji";
+
+function useIsMobile(breakpoint = 640) {
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setMobile(window.innerWidth < breakpoint);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, [breakpoint]);
+  return mobile;
+}
 
 /* Fallback palette for categories not in CATEGORY_COLORS */
 const FALLBACK_COLORS = [
@@ -58,26 +70,28 @@ export function ExpenseBreakdownChart({
   categoryBreakdown: CategoryBreakdown[];
   onCategoryClick?: (category: string) => void;
 }) {
+  const isMobile = useIsMobile();
   const pieData = categoryBreakdown.map((c, i) => ({
     name: c.category,
     value: c.total,
     fill: getCategoryColor(c.category, i),
   }));
+  const total = pieData.reduce((s, e) => s + e.value, 0);
 
   return (
     <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]">
-      <h3 className="text-xl font-bold text-[var(--catto-slate-900)] mb-6">Expense Breakdown</h3>
-      <ResponsiveContainer width="100%" height={320}>
+      <h3 className="text-xl font-bold text-[var(--catto-slate-900)] mb-4 sm:mb-6">Expense Breakdown</h3>
+      <ResponsiveContainer width="100%" height={isMobile ? 220 : 320}>
         <PieChart>
           <Pie
             data={pieData}
             cx="50%"
             cy="50%"
-            innerRadius={65}
-            outerRadius={100}
+            innerRadius={isMobile ? 48 : 65}
+            outerRadius={isMobile ? 78 : 100}
             paddingAngle={2}
             dataKey="value"
-            label={renderCustomLabel}
+            label={isMobile ? false : renderCustomLabel}
             labelLine={false}
             onClick={(_data, index) => onCategoryClick?.(pieData[index].name)}
             className="cursor-pointer"
@@ -98,6 +112,27 @@ export function ExpenseBreakdownChart({
           />
         </PieChart>
       </ResponsiveContainer>
+      {/* Mobile: color legend grid below chart */}
+      {isMobile && (
+        <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5">
+          {pieData.map((entry, index) => {
+            const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
+            if (pct < 1) return null;
+            return (
+              <button
+                key={index}
+                onClick={() => onCategoryClick?.(entry.name)}
+                className="flex items-center gap-1.5 text-left py-0.5 active:opacity-70"
+              >
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.fill }} />
+                <span className="text-xs font-medium text-slate-600 truncate">
+                  {getCategoryEmoji(entry.name)} {entry.name} {pct}%
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -110,8 +145,9 @@ export function CategoryBarChart({
   categoryBreakdown: CategoryBreakdown[];
   onCategoryClick?: (category: string) => void;
 }) {
+  const isMobile = useIsMobile();
   const barData = categoryBreakdown.map((c, i) => ({
-    name: `${getCategoryEmoji(c.category)} ${c.category}`,
+    name: isMobile ? getCategoryEmoji(c.category) : `${getCategoryEmoji(c.category)} ${c.category}`,
     fullName: c.category,
     total: c.total,
     fill: getCategoryColor(c.category, i),
@@ -119,12 +155,21 @@ export function CategoryBarChart({
 
   return (
     <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]">
-      <h3 className="text-xl font-bold text-[var(--catto-slate-900)] mb-6">Spending per Category</h3>
-      <ResponsiveContainer width="100%" height={320}>
-        <BarChart data={barData} margin={{ bottom: 90 }}>
+      <h3 className="text-xl font-bold text-[var(--catto-slate-900)] mb-4 sm:mb-6">Spending per Category</h3>
+      <ResponsiveContainer width="100%" height={isMobile ? 260 : 320}>
+        <BarChart data={barData} margin={{ bottom: isMobile ? 10 : 90 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-          <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#94a3b8" }} angle={-40} textAnchor="end" height={100} interval={0} axisLine={{ stroke: "#e2e8f0" }} tickLine={false} />
-          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={formatCurrency} axisLine={false} tickLine={false} width={65} />
+          <XAxis
+            dataKey="name"
+            tick={{ fontSize: isMobile ? 16 : 11, fill: "#94a3b8" }}
+            angle={isMobile ? 0 : -40}
+            textAnchor={isMobile ? "middle" : "end"}
+            height={isMobile ? 36 : 100}
+            interval={0}
+            axisLine={{ stroke: "#e2e8f0" }}
+            tickLine={false}
+          />
+          <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={formatCurrency} axisLine={false} tickLine={false} width={isMobile ? 50 : 65} />
           <Tooltip
             formatter={(value) => formatCurrency(Number(value))}
             labelFormatter={(_label, payload) => {
