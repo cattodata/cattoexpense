@@ -49,6 +49,8 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
   const [aiEnhanced, setAiEnhanced] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [activeMonth, setActiveMonth] = useState<string>("all");
+  const [filterYear, setFilterYear] = useState<string>("all");
+  const [filterMonth, setFilterMonth] = useState<string>("all");
 
   // Category detail table state
   const [catSearch, setCatSearch] = useState("");
@@ -69,9 +71,58 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
 
   // Determine which result to show based on selected month
   const hasMultipleMonths = monthlyResults && monthlyResults.length > 1;
-  const activeResult = activeMonth === "all"
-    ? result
-    : monthlyResults?.find((m) => m.month === activeMonth)?.result || result;
+
+  // Compute available years and months for filter dropdowns
+  const availableYears = useMemo(() => {
+    if (!monthlyResults || monthlyResults.length === 0) return [];
+    const years = [...new Set(monthlyResults.map((m) => m.month.slice(0, 4)))].sort();
+    return years;
+  }, [monthlyResults]);
+
+  const availableMonths = useMemo(() => {
+    if (!monthlyResults || monthlyResults.length === 0) return [];
+    if (filterYear === "all") return monthlyResults;
+    return monthlyResults.filter((m) => m.month.startsWith(filterYear));
+  }, [monthlyResults, filterYear]);
+
+  const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  // Sync filter dropdowns → activeMonth
+  useMemo(() => {
+    if (filterYear === "all" && filterMonth === "all") {
+      setActiveMonth("all");
+    } else if (filterYear !== "all" && filterMonth === "all") {
+      // Year selected but no specific month → show all months of that year
+      // We treat this as "all" but filter the data later
+      setActiveMonth("all");
+    } else if (filterYear !== "all" && filterMonth !== "all") {
+      setActiveMonth(`${filterYear}-${filterMonth}`);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterYear, filterMonth]);
+
+  // Build filtered result when year is selected but month is "all"
+  const activeResult = useMemo(() => {
+    if (activeMonth !== "all") {
+      return monthlyResults?.find((m) => m.month === activeMonth)?.result || result;
+    }
+    if (filterYear !== "all" && monthlyResults) {
+      // Filter to only transactions from the selected year
+      const yearMonths = monthlyResults.filter((m) => m.month.startsWith(filterYear));
+      if (yearMonths.length > 0 && yearMonths.length < monthlyResults.length) {
+        // Combine transactions from all months in this year
+        const yearTxns: import("@/lib/types").RawTransaction[] = [];
+        for (const m of yearMonths) {
+          for (const t of m.result.transactions) {
+            yearTxns.push({ date: t.date, amount: t.amount, description: t.description, source: t.source });
+          }
+        }
+        // Re-analyze just this year's data
+        return analyze(yearTxns) as AnalysisResult;
+      }
+    }
+    return result;
+  }, [activeMonth, filterYear, monthlyResults, result]);
 
   // Transfer exclusion toggles — all excluded by default
   const [excludedSubcats, setExcludedSubcats] = useState<Set<string>>(new Set());
@@ -118,13 +169,17 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
   const previousResult = useMemo(() => {
     if (!monthlyResults || monthlyResults.length < 2) return undefined;
     if (activeMonth === "all") {
-      // Compare last two months
-      return monthlyResults[monthlyResults.length - 2]?.result;
+      // When filtering by year, compare last two months in that year
+      const pool = filterYear !== "all"
+        ? monthlyResults.filter((m) => m.month.startsWith(filterYear))
+        : monthlyResults;
+      if (pool.length < 2) return undefined;
+      return pool[pool.length - 2]?.result;
     }
     const idx = monthlyResults.findIndex((m) => m.month === activeMonth);
     if (idx > 0) return monthlyResults[idx - 1].result;
     return undefined;
-  }, [activeMonth, monthlyResults]);
+  }, [activeMonth, filterYear, monthlyResults]);
 
   const handleExport = async (type: "csv" | "pdf") => {
     setExporting(true);
@@ -230,34 +285,81 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
           </div>
         </div>
 
-        {/* Month Tabs — only show when multiple months */}
+        {/* Period Filter — Year & Month dropdowns + quick month tabs */}
         {hasMultipleMonths && (
-          <div className="bg-white rounded-xl border border-[var(--catto-slate-100)] shadow-sm p-2">
-            <div className="flex items-center gap-1 overflow-x-auto">
-              <Calendar className="w-4 h-4 text-[var(--catto-slate-400)] ml-2 shrink-0" />
-              <button
-                onClick={() => { setActiveMonth("all"); setSelectedCategory(null); }}
-                className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
-                  activeMonth === "all"
-                    ? "bg-[var(--catto-primary)] text-[var(--catto-slate-900)] shadow-sm"
-                    : "text-[var(--catto-slate-500)] hover:bg-[var(--catto-slate-50)] hover:text-[var(--catto-slate-700)]"
-                }`}
-              >
-                📊 All Months
-              </button>
-              {monthlyResults!.map((m) => (
+          <div className="bg-white rounded-xl border border-[var(--catto-slate-100)] shadow-sm p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+              {/* Dropdowns */}
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-[var(--catto-slate-400)] shrink-0" />
+                <select
+                  value={filterYear}
+                  onChange={(e) => { setFilterYear(e.target.value); setFilterMonth("all"); setSelectedCategory(null); }}
+                  className="text-sm font-bold border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
+                >
+                  <option value="all">All Years</option>
+                  {availableYears.map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+                <select
+                  value={filterMonth}
+                  onChange={(e) => { setFilterMonth(e.target.value); setSelectedCategory(null); }}
+                  className="text-sm font-bold border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
+                >
+                  <option value="all">{filterYear === "all" ? "All Months" : `All ${filterYear}`}</option>
+                  {availableMonths.map((m) => {
+                    const monthNum = parseInt(m.month.slice(5, 7));
+                    return (
+                      <option key={m.month} value={m.month.slice(5, 7)}>
+                        {MONTH_NAMES[monthNum - 1]} {filterYear === "all" ? m.month.slice(0, 4) : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+                {(filterYear !== "all" || filterMonth !== "all") && (
+                  <button
+                    onClick={() => { setFilterYear("all"); setFilterMonth("all"); setSelectedCategory(null); }}
+                    className="text-xs text-[var(--catto-slate-500)] hover:text-[var(--catto-slate-800)] underline cursor-pointer whitespace-nowrap"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+              {/* Quick month tabs */}
+              <div className="flex items-center gap-1 overflow-x-auto flex-1 min-w-0">
                 <button
-                  key={m.month}
-                  onClick={() => { setActiveMonth(m.month); setSelectedCategory(null); }}
-                  className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-all ${
-                    activeMonth === m.month
+                  onClick={() => { setFilterYear("all"); setFilterMonth("all"); setSelectedCategory(null); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                    filterYear === "all" && filterMonth === "all"
                       ? "bg-[var(--catto-primary)] text-[var(--catto-slate-900)] shadow-sm"
                       : "text-[var(--catto-slate-500)] hover:bg-[var(--catto-slate-50)] hover:text-[var(--catto-slate-700)]"
                   }`}
                 >
-                  {m.label}
+                  All
                 </button>
-              ))}
+                {availableMonths.map((m) => {
+                  const isActive = filterYear !== "all" && filterMonth === m.month.slice(5, 7)
+                    || filterYear === "all" && activeMonth === m.month;
+                  return (
+                    <button
+                      key={m.month}
+                      onClick={() => {
+                        setFilterYear(m.month.slice(0, 4));
+                        setFilterMonth(m.month.slice(5, 7));
+                        setSelectedCategory(null);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                        isActive
+                          ? "bg-[var(--catto-primary)] text-[var(--catto-slate-900)] shadow-sm"
+                          : "text-[var(--catto-slate-500)] hover:bg-[var(--catto-slate-50)] hover:text-[var(--catto-slate-700)]"
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
@@ -724,8 +826,8 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
         {/* Recurring Charges & Spending Spikes */}
         <Insights recurring={activeResult.recurring} spikes={activeResult.spikes} />
 
-        {/* Income vs Expenses Over Time (only when multi-month data) */}
-        {hasMultipleMonths && activeMonth === "all" && (
+        {/* Income vs Expenses Over Time (only when viewing multiple months) */}
+        {hasMultipleMonths && (filterMonth === "all") && (
           <IncomeExpensesChart
             monthlyData={activeResult.monthlyData}
             totalIncome={adjustedResult.totalIncome}

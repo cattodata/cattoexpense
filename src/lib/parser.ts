@@ -1,5 +1,6 @@
 import Papa from "papaparse";
 import type { RawTransaction, ColumnMapping } from "./types";
+import { clearWarnings, warnSkipped, infoNote } from "./parse-warnings";
 
 export function detectColumns(headers: string[]): ColumnMapping | null {
   const lower = headers.map((h) => h.toLowerCase().trim());
@@ -41,12 +42,27 @@ export function detectColumns(headers: string[]): ColumnMapping | null {
     };
   }
 
+  warnSkipped("column", `Could not auto-detect columns from headers: [${headers.join(", ")}]`);
   return null;
 }
 
 function parseAmount(value: string): number {
   if (!value) return 0;
-  const cleaned = value.replace(/[,$฿\s]/g, "").replace(/\((.+)\)/, "-$1");
+  let cleaned = value.trim();
+  // Handle parenthesized negatives: (123.45) → -123.45
+  cleaned = cleaned.replace(/\((.+)\)/, "-$1");
+  // Strip currency symbols, commas, spaces
+  cleaned = cleaned.replace(/[$£€¥₹฿,\s]/g, "");
+  // Handle trailing CR/DR
+  if (/DR$/i.test(cleaned)) {
+    cleaned = "-" + cleaned.replace(/\s*DR$/i, "");
+  } else {
+    cleaned = cleaned.replace(/\s*CR$/i, "");
+  }
+  // Handle trailing minus (CBA format: "9.62-")
+  if (/\d-$/.test(cleaned)) {
+    cleaned = "-" + cleaned.replace(/-$/, "");
+  }
   const num = parseFloat(cleaned);
   return isNaN(num) ? 0 : num;
 }
@@ -59,9 +75,17 @@ function parseDate(value: string): string {
   if (!value) return "";
   const trimmed = value.trim();
 
-  // ISO format
+  // ISO format: 2024-01-15 or 2024-01-15T...
   if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
     return trimmed.slice(0, 10);
+  }
+
+  // YYYY/MM/DD format
+  const ymdMatch = trimmed.match(/^(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})$/);
+  if (ymdMatch) {
+    let yr = parseInt(ymdMatch[1]);
+    yr = thaiYearToAD(yr);
+    return `${yr}-${ymdMatch[2].padStart(2, "0")}-${ymdMatch[3].padStart(2, "0")}`;
   }
 
   // DD/MM/YYYY or MM/DD/YYYY (with potential Buddhist Era year)
@@ -84,12 +108,22 @@ function parseDate(value: string): string {
     return `${yr}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
   }
 
+  // "01 Jan 2024" or "Jan 01, 2024" — English month names
+  const enMonthMatch = trimmed.match(/\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\b/i);
+  if (enMonthMatch) {
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      return d.toISOString().slice(0, 10);
+    }
+  }
+
   // Try native parse as fallback
   const d = new Date(trimmed);
   if (!isNaN(d.getTime())) {
     return d.toISOString().slice(0, 10);
   }
 
+  warnSkipped("date", `Could not parse CSV date: "${trimmed}"`, trimmed);
   return trimmed;
 }
 
@@ -97,6 +131,7 @@ export function parseCSV(
   fileContent: string,
   mapping?: ColumnMapping
 ): { transactions: RawTransaction[]; headers: string[]; needsMapping: boolean } {
+  clearWarnings();
   const result = Papa.parse<Record<string, string>>(fileContent, {
     header: true,
     skipEmptyLines: true,
@@ -111,6 +146,7 @@ export function parseCSV(
       return { transactions: [], headers, needsMapping: true };
     }
     mapping = auto;
+    infoNote("column", `Auto-detected columns — date: "${mapping.date}", amount: "${mapping.amount}", desc: "${mapping.description}"`);
   }
 
   // Check for separate debit/credit columns (including Thai headers)
@@ -131,7 +167,10 @@ export function parseCSV(
     const dateStr = parseDate(row[mapping.date] || "");
     const description = (row[mapping.description] || "").trim();
 
-    if (!dateStr || !description) continue;
+    if (!dateStr || !description) {
+      warnSkipped("general", `Skipped row: missing ${!dateStr ? "date" : "description"}`, JSON.stringify(row));
+      continue;
+    }
 
     let amount: number;
 
@@ -143,7 +182,10 @@ export function parseCSV(
       amount = parseAmount(row[mapping.amount] || "");
     }
 
-    if (amount === 0) continue;
+    if (amount === 0) {
+      warnSkipped("amount", `Skipped row with zero/unparseable amount`, row[mapping.amount] || "");
+      continue;
+    }
 
     transactions.push({ date: dateStr, amount, description });
   }

@@ -1,4 +1,6 @@
 import type { RawTransaction } from "./types";
+import { clearWarnings, warnSkipped, infoNote } from "./parse-warnings";
+import { detectBankAdapter, type BankAdapter } from "./bank-adapters";
 
 // --- Amount Parsing ---
 
@@ -33,8 +35,8 @@ function findAmounts(line: string): AmountMatch[] {
   const results: AmountMatch[] = [];
   const coveredRanges: [number, number][] = [];
 
-  // 1. Currency-prefixed amounts ($, £, €, ฿)
-  const currRe = /-?\s?[$£€¥₹฿]\s?[\d,]+\.\d{2}-?(?:\s*(?:CR|DR))?/gi;
+  // 1. Currency-prefixed amounts ($, £, €, ฿) — accept 1-3 decimal places
+  const currRe = /-?\s?[$£€¥₹฿]\s?[\d,]+\.\d{1,3}-?(?:\s*(?:CR|DR))?/gi;
   let m: RegExpExecArray | null;
   while ((m = currRe.exec(line)) !== null) {
     const val = parseAmountValue(m[0]);
@@ -46,7 +48,8 @@ function findAmounts(line: string): AmountMatch[] {
 
   // 2. Plain decimal amounts — always check (don't skip if currency found)
   // Also captures trailing ( for CBA debit format: "110.00 ("
-  const plainRe = /([\d,]+\.\d{2}-?)(\s*\()?/g;
+  // Accept 1-3 decimal places for international formats
+  const plainRe = /([\d,]+\.\d{1,3}-?)(\s*\()?/g;
   let pm: RegExpExecArray | null;
   while ((pm = plainRe.exec(line)) !== null) {
     if (pm.index < 6) continue;
@@ -110,7 +113,58 @@ const EN_MONTHS: Record<string, string> = {
   july: "07", august: "08", september: "09", october: "10", november: "11", december: "12",
 };
 
-function normalizeDate(raw: string, fallbackYear?: number, closingMonth?: number): string {
+/**
+ * Resolve the year for a transaction date that has no explicit year.
+ *
+ * Cross-year logic: statements can span two calendar years (e.g. Nov 2025 → Jan 2026).
+ * - closingYear/closingMonth = end of statement period
+ * - startYear/startMonth = start of statement period (if known)
+ *
+ * We use the range [startMonth..closingMonth] to decide which year a transaction
+ * belongs to. If startMonth > closingMonth, the statement crosses a year boundary
+ * and months >= startMonth belong to (closingYear - 1).
+ */
+function resolveYear(
+  rawYear: string | undefined,
+  fallbackYear: number | undefined,
+  mm: string,
+  closingMonth: number | undefined,
+  startMonth?: number,
+  startYear?: number,
+): number | null {
+  if (rawYear) {
+    let yr = parseInt(rawYear);
+    if (yr < 100) yr += 2000;
+    yr = thaiYearToAD(yr);
+    // Reject implausible years (merchant numbers like 1001)
+    if (yr < 1900 || yr > 2100) return null;
+    return yr;
+  }
+  const yr = fallbackYear || new Date().getFullYear();
+  const txMonth = parseInt(mm);
+
+  // If we know both start and end of the statement period
+  if (startMonth && closingMonth && startYear !== undefined) {
+    if (startYear < yr) {
+      // Statement crosses year boundary (e.g. Nov 2025 → Jan 2026)
+      // Months >= startMonth belong to startYear, months <= closingMonth belong to yr
+      if (txMonth >= startMonth) return startYear;
+      return yr;
+    }
+    // Same year — no adjustment needed
+    return yr;
+  }
+
+  // Fallback: simple cross-year heuristic (when we only know closing month)
+  // Only subtract a year if the statement clearly spans a year boundary:
+  // closingMonth is early in the year (Jan-Mar) and txMonth is late (Oct-Dec)
+  if (closingMonth && closingMonth <= 3 && txMonth >= 10) {
+    return yr - 1;
+  }
+  return yr;
+}
+
+function normalizeDate(raw: string, fallbackYear?: number, closingMonth?: number, startMonth?: number, startYear?: number): string {
   const trimmed = raw.trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
 
@@ -127,24 +181,15 @@ function normalizeDate(raw: string, fallbackYear?: number, closingMonth?: number
   }
 
   // "01 Jan 2024", "01 Jan 24", or "01 Jan" (day-first English month)
+  // Also handles extra whitespace/punctuation between parts
   const dayFirstMatch = trimmed.match(
     /^(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?(?:\s+(\d{2,4}))?$/i
   );
   if (dayFirstMatch) {
     const dd = dayFirstMatch[1].padStart(2, "0");
     const mm = EN_MONTHS[dayFirstMatch[2].toLowerCase().slice(0, 3)];
-    let yr: number;
-    if (dayFirstMatch[3]) {
-      yr = parseInt(dayFirstMatch[3]);
-      if (yr < 100) yr += 2000;
-      // Reject implausible years (merchant numbers like 1001)
-      if (yr < 1900 || yr > 2100) return "";
-    } else {
-      yr = fallbackYear || new Date().getFullYear();
-      // Cross-year adjustment: if tx month > closing month, it's from the prior year
-      const txMonth = parseInt(mm);
-      if (closingMonth && txMonth > closingMonth) yr -= 1;
-    }
+    const yr = resolveYear(dayFirstMatch[3], fallbackYear, mm, closingMonth, startMonth, startYear);
+    if (yr === null) return "";
     return `${yr}-${mm}-${dd}`;
   }
 
@@ -155,24 +200,21 @@ function normalizeDate(raw: string, fallbackYear?: number, closingMonth?: number
   if (fullMonthFirstMatch) {
     const mm = EN_MONTHS[fullMonthFirstMatch[1].toLowerCase()];
     const dd = fullMonthFirstMatch[2].padStart(2, "0");
-    let yr: number;
-    if (fullMonthFirstMatch[3]) {
-      yr = parseInt(fullMonthFirstMatch[3]);
-      if (yr < 100) yr += 2000;
-      if (yr < 1900 || yr > 2100) return "";
-    } else {
-      yr = fallbackYear || new Date().getFullYear();
-      // Cross-year adjustment: if tx month > closing month, it's from the prior year
-      const txMonth = parseInt(mm);
-      if (closingMonth && txMonth > closingMonth) yr -= 1;
-    }
+    const yr = resolveYear(fullMonthFirstMatch[3], fallbackYear, mm, closingMonth, startMonth, startYear);
+    if (yr === null) return "";
     return `${yr}-${mm}-${dd}`;
   }
 
-  const slashMatch = trimmed.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
+  // DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY (also handles YYYY/MM/DD)
+  const slashMatch = trimmed.match(/^(\d{1,4})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
   if (slashMatch) {
-    const [, a, b, rawY] = slashMatch;
-    let y = rawY;
+    const [, a, b, c] = slashMatch;
+    // YYYY/MM/DD format (first part is 4 digits)
+    if (a.length === 4) {
+      const yr = thaiYearToAD(parseInt(a));
+      return `${yr}-${b.padStart(2, "0")}-${c.padStart(2, "0")}`;
+    }
+    let y = c;
     if (y.length === 2) y = `20${y}`;
     let yr = parseInt(y);
     yr = thaiYearToAD(yr);
@@ -180,6 +222,7 @@ function normalizeDate(raw: string, fallbackYear?: number, closingMonth?: number
     const numB = parseInt(b);
     if (numA > 12) return `${yr}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
     if (numB > 12) return `${yr}-${a.padStart(2, "0")}-${b.padStart(2, "0")}`;
+    // Default: DD/MM/YYYY (AU banks)
     return `${yr}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
   }
 
@@ -188,6 +231,7 @@ function normalizeDate(raw: string, fallbackYear?: number, closingMonth?: number
     const d = new Date(trimmed);
     if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
   }
+  warnSkipped("date", `Could not parse date: "${trimmed}"`, trimmed);
   return "";
 }
 
@@ -431,12 +475,12 @@ async function extractPageItems(arrayBuffer: ArrayBuffer): Promise<PageItem[][]>
       if (Math.abs(tx[1]) > 0.1 || Math.abs(tx[2]) > 0.1) continue;
 
       let str = item.str;
-      // CommBank PDFs render decimal points as spaces: "$43,400 00" → "$43,400.00", "5 90" → "5.90"
-      // Normalize items that look like amounts with a space instead of decimal point.
+      // Some PDFs render decimal points as spaces: "$43,400 00" → "$43,400.00", "5 90" → "5.90"
+      // Also handle single-space or multiple-space separators between integer and decimal parts.
       // Only applies to strings that are entirely amount-like (prevents false positives).
       const trimStr = str.trim();
-      if (/\d\s\d{2}\s*$/.test(trimStr) && /^-?[$£€¥₹฿]?[\s-]?[\d,]+\s\d{2}\s*$/.test(trimStr)) {
-        str = str.replace(/(\d)\s(\d{2})\s*$/, "$1.$2");
+      if (/\d\s+\d{1,3}\s*$/.test(trimStr) && /^-?[$£€¥₹฿]?[\s-]?[\d,]+\s+\d{1,3}\s*$/.test(trimStr)) {
+        str = str.replace(/(\d)\s+(\d{1,3})\s*$/, "$1.$2");
       }
 
       pageItems.push({ x: tx[4], y: tx[5], str });
@@ -496,38 +540,101 @@ function groupItemsIntoLines(allPages: PageItem[][], yThreshold: number): string
   return lines;
 }
 
-/** Try to find year and closing month from statement header lines */
-function detectStatementYear(lines: string[]): { year: number | undefined; closingMonth: number | undefined } {
+/** Parse a header date like "16 Jan 2026" or "January 16, 2026" into {month, year} */
+function parseHeaderDate(str: string): { month: number; year: number } | null {
+  // "16 Jan 2026" or "16 January 2026"
+  const dayFirst = str.match(/(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(20\d{2})/i);
+  if (dayFirst) {
+    return {
+      month: parseInt(EN_MONTHS[dayFirst[2].toLowerCase().slice(0, 3)] || "0"),
+      year: parseInt(dayFirst[3]),
+    };
+  }
+  // "January 16, 2026"
+  const monthFirst = str.match(/(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+(20\d{2})/i);
+  if (monthFirst) {
+    return {
+      month: parseInt(EN_MONTHS[monthFirst[1].toLowerCase()] || "0"),
+      year: parseInt(monthFirst[2]),
+    };
+  }
+  return null;
+}
+
+/** Try to find year and closing month from statement header lines.
+ *
+ *  CommBank fix: look for "Statement Period: DD Mon YYYY to DD Mon YYYY" and
+ *  extract BOTH the start and end dates. The closing (end) date determines
+ *  the year + closingMonth. The start date's month is also stored so the
+ *  cross-year logic knows which months belong to which year.
+ */
+function detectStatementYear(lines: string[]): {
+  year: number | undefined;
+  closingMonth: number | undefined;
+  startMonth: number | undefined;
+  startYear: number | undefined;
+} {
   const sample = lines.slice(0, 80).join(" ");
-  // Prefer "Statement Period" / "Closing Date" with full date including month
+
+  // 1. "Statement Period: DD Mon YYYY to DD Mon YYYY" (CommBank, ANZ, etc.)
+  //    Also matches "from DD Mon YYYY to DD Mon YYYY"
+  const periodRangeMatch = sample.match(
+    /(?:statement\s+period|account\s+summary)[^]*?(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+20\d{2})\s+(?:to|-|–)\s+(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+20\d{2})/i
+  );
+  if (periodRangeMatch) {
+    const startDate = parseHeaderDate(periodRangeMatch[1]);
+    const endDate = parseHeaderDate(periodRangeMatch[2]);
+    if (endDate) {
+      return {
+        year: endDate.year,
+        closingMonth: endDate.month,
+        startMonth: startDate?.month,
+        startYear: startDate?.year,
+      };
+    }
+  }
+
+  // 2. "Closing Date" with a specific date
+  const closingMatch = sample.match(
+    /closing\s+date[^]*?(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+20\d{2})/i
+  );
+  if (closingMatch) {
+    const d = parseHeaderDate(closingMatch[1]);
+    if (d) return { year: d.year, closingMonth: d.month, startMonth: undefined, startYear: undefined };
+  }
+
+  // 3. "Statement Period" / "Statement Date" with year (may or may not have month)
   const periodDateMatch = sample.match(/(?:statement\s+period|closing\s+date|statement\s+date)[^]*?(?:(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+)?(20\d{2})/i);
   if (periodDateMatch) {
     const year = parseInt(periodDateMatch[2]);
     const month = periodDateMatch[1] ? parseInt(EN_MONTHS[periodDateMatch[1].toLowerCase()] || "0") : undefined;
-    return { year, closingMonth: month || undefined };
+    return { year, closingMonth: month || undefined, startMonth: undefined, startYear: undefined };
   }
-  // Amex: first full date in header (e.g. "January 16, 2026")
+
+  // 4. Amex: first full date in header (e.g. "January 16, 2026")
   const fullDateMatch = sample.match(/(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+(20\d{2})/i);
   if (fullDateMatch) {
     const year = parseInt(fullDateMatch[2]);
     const month = parseInt(EN_MONTHS[fullDateMatch[1].toLowerCase()] || "0");
-    return { year, closingMonth: month || undefined };
+    return { year, closingMonth: month || undefined, startMonth: undefined, startYear: undefined };
   }
-  // Day-first date in header (e.g. "16 Jan 2026")
+
+  // 5. Day-first date in header (e.g. "16 Jan 2026")
   const dayFirstDateMatch = sample.match(/(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+(20\d{2})/i);
   if (dayFirstDateMatch) {
     const year = parseInt(dayFirstDateMatch[3]);
     const month = parseInt(EN_MONTHS[dayFirstDateMatch[2].toLowerCase().slice(0, 3)] || "0");
-    return { year, closingMonth: month || undefined };
+    return { year, closingMonth: month || undefined, startMonth: undefined, startYear: undefined };
   }
-  // Generic fallback — year only
+
+  // 6. Generic fallback — year only
   const yearMatch = sample.match(/\b(20\d{2})\b/);
-  return { year: yearMatch ? parseInt(yearMatch[1]) : undefined, closingMonth: undefined };
+  return { year: yearMatch ? parseInt(yearMatch[1]) : undefined, closingMonth: undefined, startMonth: undefined, startYear: undefined };
 }
 
 function extractTransactionsFromLines(lines: string[], bankName: string): RawTransaction[] {
   const creditCard = isCreditCardStatement(lines);
-  const { year: statementYear, closingMonth } = detectStatementYear(lines);
+  const { year: statementYear, closingMonth, startMonth, startYear } = detectStatementYear(lines);
   const transactions: RawTransaction[] = [];
   let lastDate = "";
 
@@ -542,7 +649,7 @@ function extractTransactionsFromLines(lines: string[], bankName: string): RawTra
 
     if (dateRaw && amounts.length > 0) {
       // --- Dated transaction line (with amount on same line) ---
-      const date = normalizeDate(dateRaw, statementYear, closingMonth);
+      const date = normalizeDate(dateRaw, statementYear, closingMonth, startMonth, startYear);
       if (!date) continue;
       lastDate = date;
 
@@ -674,7 +781,7 @@ function extractTransactionsFromLines(lines: string[], bankName: string): RawTra
 
       if (foundAmts.length === 0) continue;
 
-      const date = normalizeDate(dateRaw, statementYear, closingMonth);
+      const date = normalizeDate(dateRaw, statementYear, closingMonth, startMonth, startYear);
       if (!date) continue;
       lastDate = date;
 
@@ -726,19 +833,29 @@ function extractTransactionsFromLines(lines: string[], bankName: string): RawTra
 export async function parsePDF(
   arrayBuffer: ArrayBuffer
 ): Promise<{ transactions: RawTransaction[]; rawLines: string[]; bankName: string }> {
+  clearWarnings();
   const allPages = await extractPageItems(arrayBuffer);
 
   // Build lines (for metadata detection shared by all strategies)
   const metaLines = groupItemsIntoLines(allPages, 5);
-  const bankName = detectBank(metaLines);
+  // Use adapter for bank detection — centralises bank-specific quirks
+  const adapter = detectBankAdapter(metaLines);
+  const bankName = adapter.name;
   const creditCard = isCreditCardStatement(metaLines);
-  const { year: statementYear, closingMonth } = detectStatementYear(metaLines);
+  const { year: statementYear, closingMonth, startMonth, startYear } = detectStatementYear(metaLines);
+
+  infoNote("bank", `Detected bank: ${bankName}${creditCard ? " (credit card)" : ""}`, bankName);
+  if (statementYear) {
+    infoNote("date", `Statement year: ${statementYear}, closing: month ${closingMonth ?? "?"}${startMonth ? `, start: ${startYear}-${startMonth}` : ""}`);
+  }
 
   // Strategy 1: Column-position-based table extraction (most universal).
   // Uses X/Y positions of text items directly — works for any tabular PDF.
-  const columnResult = extractFromTableColumns(allPages, bankName, creditCard, statementYear, closingMonth);
+  const columnResult = extractFromTableColumns(allPages, bankName, creditCard, statementYear, closingMonth, startMonth, startYear);
   if (columnResult.length > 0) {
-    return { transactions: columnResult, rawLines: metaLines, bankName };
+    const fixed = fixYearOrder(columnResult);
+    infoNote("general", `Extracted ${fixed.length} transactions using column-position strategy`);
+    return { transactions: fixed, rawLines: metaLines, bankName };
   }
 
   // Strategy 2: Line-based regex extraction with adaptive Y-thresholds.
@@ -747,11 +864,72 @@ export async function parsePDF(
     const bn = detectBank(lines);
     const transactions = extractTransactionsFromLines(lines, bn);
     if (transactions.length > 0) {
-      return { transactions, rawLines: lines, bankName: bn };
+      const fixed = fixYearOrder(transactions);
+      infoNote("general", `Extracted ${fixed.length} transactions using line-based strategy (Y-threshold=${threshold})`);
+      return { transactions: fixed, rawLines: lines, bankName: bn };
     }
   }
 
+  warnSkipped("general", "No transactions found in PDF — format may be unsupported");
   return { transactions: [], rawLines: metaLines, bankName };
+}
+
+/** Post-parse sanity check: detect & fix year errors by ensuring dates are in order.
+ *  Bank statements list transactions chronologically. If a date suddenly jumps
+ *  backward by a full year, the cross-year logic likely assigned the wrong year.
+ */
+function fixYearOrder(transactions: RawTransaction[]): RawTransaction[] {
+  if (transactions.length < 2) return transactions;
+
+  // Check if the years are consistent — all transactions should be within ~1 year
+  const years = transactions.map(t => parseInt(t.date.slice(0, 4)));
+  const minYear = Math.min(...years);
+  const maxYear = Math.max(...years);
+
+  // If range is > 2 years, something is very wrong
+  if (maxYear - minYear > 2) {
+    warnSkipped("date", `Year range spans ${maxYear - minYear} years (${minYear}-${maxYear}) — possible parsing error`);
+  }
+
+  // Fix pattern: if most dates are year X but a few are year X-1 (or X+1),
+  // and those outliers break the chronological order, fix them.
+  // Count dates per year
+  const yearCounts = new Map<number, number>();
+  for (const y of years) yearCounts.set(y, (yearCounts.get(y) || 0) + 1);
+  if (yearCounts.size <= 1) return transactions; // All same year, no fix needed
+
+  // Find the dominant year
+  let dominantYear = minYear;
+  let dominantCount = 0;
+  for (const [y, c] of yearCounts) {
+    if (c > dominantCount) { dominantYear = y; dominantCount = c; }
+  }
+
+  // Only fix if dominant year accounts for >70% of transactions
+  if (dominantCount / transactions.length < 0.7) return transactions;
+
+  // Fix outlier transactions that break chronological order
+  const fixed = transactions.map((t, i) => {
+    const yr = parseInt(t.date.slice(0, 4));
+    if (yr === dominantYear) return t;
+
+    // Check if this transaction's date is out of chronological order
+    const prev = i > 0 ? transactions[i - 1].date : null;
+    const next = i < transactions.length - 1 ? transactions[i + 1].date : null;
+
+    // If date is chronologically between prev and next when using dominant year, fix it
+    const fixedDate = dominantYear + t.date.slice(4);
+    const isOutOfOrder = (prev && t.date < prev && fixedDate >= prev) ||
+                         (next && t.date > next && fixedDate <= next);
+
+    if (isOutOfOrder) {
+      warnSkipped("date", `Fixed year ${yr} → ${dominantYear} for "${t.description}" (was out of order)`, t.date);
+      return { ...t, date: fixedDate };
+    }
+    return t;
+  });
+
+  return fixed;
 }
 
 // ─── Column-Position-Based Table Extraction ───
@@ -781,13 +959,13 @@ function groupIntoRows(items: PageItem[], yThreshold: number): PageItem[][] {
   return rows;
 }
 
-/** Check if a string looks like a monetary amount (has .XX decimal or currency sign) */
+/** Check if a string looks like a monetary amount (has .X-XXX decimal or currency sign) */
 function looksLikeAmount(str: string): boolean {
   const s = str.trim();
   // Must have digits
   if (!/\d/.test(s)) return false;
-  // Prefer .XX format (most bank amounts)
-  if (/\d\.\d{2}\s*[-)]?\s*$/.test(s)) return true;
+  // Prefer .X to .XXX format (1-3 decimal places)
+  if (/\d\.\d{1,3}\s*[-)]?\s*$/.test(s)) return true;
   // Currency-prefixed
   if (/[$£€¥₹฿]/.test(s) && /\d/.test(s)) return true;
   return false;
@@ -798,7 +976,9 @@ function extractFromTableColumns(
   bankName: string,
   creditCard: boolean,
   statementYear: number | undefined,
-  closingMonth: number | undefined
+  closingMonth: number | undefined,
+  startMonth?: number,
+  startYear?: number,
 ): RawTransaction[] {
   const transactions: RawTransaction[] = [];
   let lastDate = "";
@@ -909,7 +1089,7 @@ function extractFromTableColumns(
         continue;
       }
 
-      const date = normalizeDate(dateRaw, statementYear, closingMonth);
+      const date = normalizeDate(dateRaw, statementYear, closingMonth, startMonth, startYear);
       if (!date) continue;
       lastDate = date;
 
@@ -942,3 +1122,15 @@ function extractFromTableColumns(
 
   return transactions;
 }
+
+// ─── Test-only exports ───
+export const _test = {
+  resolveYear,
+  normalizeDate,
+  detectStatementYear,
+  fixYearOrder,
+  startDate,
+  findAmounts,
+  isNoiseLine,
+  parseAmountValue,
+};
