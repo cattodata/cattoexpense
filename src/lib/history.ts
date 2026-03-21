@@ -1,6 +1,7 @@
-/** Analysis history storage — localStorage-based, per user */
+/** Analysis history storage — encrypted IndexedDB with localStorage fallback */
 
 import type { AnalysisResult } from "./types";
+import { secureGet, secureSet } from "./secure-store";
 
 export interface AnalysisRecord {
   id: string;
@@ -19,23 +20,22 @@ export interface AnalysisRecord {
 
 const HISTORY_KEY = "catto_history";
 
-function getAllRecords(): AnalysisRecord[] {
+async function getAllRecords(): Promise<AnalysisRecord[]> {
   try {
-    const raw = localStorage.getItem(HISTORY_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
+    return (await secureGet<AnalysisRecord[]>(HISTORY_KEY)) ?? [];
+  } catch (err) {
+    console.warn("[CattoExpense] Failed to load history:", err);
     return [];
   }
 }
 
-function saveAllRecords(records: AnalysisRecord[]) {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(records));
+async function saveAllRecords(records: AnalysisRecord[]): Promise<void> {
+  await secureSet(HISTORY_KEY, records);
 }
 
-export function saveAnalysis(userId: string, fileName: string, result: AnalysisResult): AnalysisRecord {
-  const records = getAllRecords();
+export async function saveAnalysis(userId: string, fileName: string, result: AnalysisResult): Promise<AnalysisRecord> {
+  const records = await getAllRecords();
 
-  // Check if same period already analyzed by this user — update instead of duplicate
   const existingIndex = records.findIndex(
     (r) => r.userId === userId && r.dateRange.from === result.dateRange.from && r.dateRange.to === result.dateRange.to
   );
@@ -57,35 +57,22 @@ export function saveAnalysis(userId: string, fileName: string, result: AnalysisR
   if (existingIndex >= 0) {
     records[existingIndex] = record;
   } else {
-    records.unshift(record); // newest first
+    records.unshift(record);
   }
 
-  saveAllRecords(records);
+  await saveAllRecords(records);
   return record;
 }
 
-export function getUserHistory(userId: string): AnalysisRecord[] {
-  return getAllRecords()
+export async function getUserHistory(userId: string): Promise<AnalysisRecord[]> {
+  const records = await getAllRecords();
+  return records
     .filter((r) => r.userId === userId)
     .sort((a, b) => new Date(b.analyzedAt).getTime() - new Date(a.analyzedAt).getTime());
 }
 
-export function deleteAnalysis(userId: string, recordId: string) {
-  const records = getAllRecords().filter((r) => !(r.id === recordId && r.userId === userId));
-  saveAllRecords(records);
-}
-
-export function getAnalyzedMonths(userId: string): string[] {
-  const records = getUserHistory(userId);
-  const months = new Set<string>();
-  for (const r of records) {
-    // Extract months covered by each analysis
-    for (const t of r.result.transactions) {
-      const date = new Date(t.date);
-      if (!isNaN(date.getTime())) {
-        months.add(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`);
-      }
-    }
-  }
-  return Array.from(months).sort().reverse();
+export async function deleteAnalysis(userId: string, recordId: string): Promise<void> {
+  const records = await getAllRecords();
+  const filtered = records.filter((r) => !(r.id === recordId && r.userId === userId));
+  await saveAllRecords(filtered);
 }

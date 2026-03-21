@@ -81,7 +81,8 @@ export default function AuthScreen({ onAuth, onSkip }: AuthScreenProps) {
             <div className="flex rounded-full bg-[var(--catto-slate-50)] p-1">
               <button
                 onClick={() => { setMode("login"); setError(null); }}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-sm font-bold transition-all ${
+                aria-pressed={mode === "login"}
+                className={`flex-1 flex items-center justify-center gap-1.5 min-h-[44px] rounded-full text-sm font-bold transition-all ${
                   mode === "login"
                     ? "bg-white shadow-sm text-[var(--catto-slate-900)]"
                     : "text-[var(--catto-slate-400)] hover:text-[var(--catto-slate-600)]"
@@ -91,7 +92,8 @@ export default function AuthScreen({ onAuth, onSkip }: AuthScreenProps) {
               </button>
               <button
                 onClick={() => { setMode("register"); setError(null); }}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-full text-sm font-bold transition-all ${
+                aria-pressed={mode === "register"}
+                className={`flex-1 flex items-center justify-center gap-1.5 min-h-[44px] rounded-full text-sm font-bold transition-all ${
                   mode === "register"
                     ? "bg-white shadow-sm text-[var(--catto-slate-900)]"
                     : "text-[var(--catto-slate-400)] hover:text-[var(--catto-slate-600)]"
@@ -136,8 +138,29 @@ export default function AuthScreen({ onAuth, onSkip }: AuthScreenProps) {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  minLength={8}
                   className="w-full rounded-lg border border-[var(--catto-primary-20)] px-3 py-2.5 text-sm text-[var(--catto-slate-800)] focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-[var(--catto-primary)] outline-none"
                 />
+                {mode === "register" && (
+                  <div className="mt-1.5">
+                    {password.length === 0 ? (
+                      <p className="text-xs text-[var(--catto-slate-400)]">Minimum 8 characters</p>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4].map((i) => {
+                            const strength = password.length < 8 ? 0 : password.length < 10 ? 1 : /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password) ? 4 : /[A-Z]/.test(password) && /[0-9]/.test(password) ? 3 : 2;
+                            const colors = ["bg-[var(--catto-red-400)]", "bg-[var(--catto-orange-400)]", "bg-[var(--catto-blue-400)]", "bg-[var(--catto-green-500)]"];
+                            return <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= strength ? colors[strength - 1] : "bg-[var(--catto-slate-200)]"}`} />;
+                          })}
+                        </div>
+                        <p className="text-xs text-[var(--catto-slate-400)]">
+                          {password.length < 8 ? "Too short — minimum 8 characters" : password.length < 10 ? "Weak — try longer" : /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password) ? "Strong" : /[A-Z]/.test(password) && /[0-9]/.test(password) ? "Good — add symbols for stronger" : "Fair — add uppercase & numbers"}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {error && (

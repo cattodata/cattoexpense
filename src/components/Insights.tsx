@@ -16,7 +16,7 @@ export default function Insights({ recurring, spikes }: InsightsProps) {
       <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl border border-[var(--catto-slate-100)] shadow-sm">
         <div className="flex items-center gap-2 mb-6">
           <Repeat className="w-5 h-5 text-[var(--catto-primary)]" />
-          <h3 className="text-xl font-bold text-[var(--catto-slate-900)]">Recurring Charges 🔄</h3>
+          <h2 className="text-xl font-bold text-[var(--catto-slate-900)]">Recurring Charges 🔄</h2>
         </div>
         {recurring.length === 0 ? (
           <p className="text-sm text-[var(--catto-slate-400)]">No recurring charges detected. 🐱</p>
@@ -50,7 +50,7 @@ export default function Insights({ recurring, spikes }: InsightsProps) {
       <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl border border-[var(--catto-slate-100)] shadow-sm">
         <div className="flex items-center gap-2 mb-6">
           <Zap className="w-5 h-5 text-[var(--catto-orange-400)]" />
-          <h3 className="text-xl font-bold text-[var(--catto-slate-900)]">Spending Spikes ⚡</h3>
+          <h2 className="text-xl font-bold text-[var(--catto-slate-900)]">Spending Spikes ⚡</h2>
         </div>
         {spikes.length === 0 ? (
           <p className="text-sm text-[var(--catto-slate-400)]">No unusual spending spikes detected. 😸</p>

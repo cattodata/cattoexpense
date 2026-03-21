@@ -102,7 +102,7 @@ body {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.catto-card:hover {
+.catto-card:hover:not(.catto-card-static) {
   transform: translateY(-4px);
   box-shadow: 0 25px 50px -12px var(--catto-primary-30);
 }
@@ -132,6 +132,20 @@ body {
 .catto-btn-primary:disabled {
   opacity: 0.5;
   pointer-events: none;
+}
+
+/* Focus-visible outlines for keyboard navigation */
+.catto-btn-primary:focus-visible,
+.catto-btn-secondary:focus-visible,
+.catto-nav-item:focus-visible {
+  outline: 2px solid var(--catto-blue-500);
+  outline-offset: 2px;
+}
+
+.catto-dropzone:focus-visible {
+  outline: 3px solid var(--catto-blue-500);
+  outline-offset: 2px;
+  border-color: var(--catto-blue-500);
 }
 
 /* Secondary / outline button — rounded-full */
@@ -283,4 +297,21 @@ body {
 /* Pastel shadow utility */
 .catto-pastel-shadow {
   box-shadow: 0 20px 25px -5px var(--catto-primary-30);
+}
+
+/* Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .catto-stagger > *,
+  .catto-fade-in {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+
+  .catto-card:hover {
+    transform: none;
+  }
+
+  .catto-btn-primary:hover {
+    transform: none;
+  }
 }

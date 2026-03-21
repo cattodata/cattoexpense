@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   FileSpreadsheet,
   FileText,
@@ -17,12 +17,14 @@ import {
   ArrowUpDown,
   ChevronUp,
   ChevronDown,
+  Lock,
 } from "lucide-react";
 import type { AnalysisResult, RawTransaction, AICoachingData, MonthlyResult } from "@/lib/types";
-import { exportCSV, exportPDF } from "@/lib/export";
+import { exportCSV, exportPDF, exportEncrypted } from "@/lib/export";
 import { maskTransactionsForAI, createSafeSummary, exportMaskedCSV } from "@/lib/masker";
 import { aiCategorize, aiCoach } from "@/lib/ai-service";
 import { analyze } from "@/lib/analyzer";
+import { useToast } from "@/components/Toast";
 import { getCategoryEmoji } from "@/lib/category-emoji";
 import SummaryCards from "./SummaryCards";
 import { ExpenseBreakdownChart, CategoryBarChart, IncomeExpensesChart, SubcategoryDonutChart } from "./Charts";
@@ -30,6 +32,7 @@ import Insights from "./Insights";
 import AICoaching from "./AICoaching";
 import PrivacyPreview from "./PrivacyPreview";
 import InsightHub from "./InsightHub";
+import FocusTrapDialog from "./FocusTrapDialog";
 
 interface DashboardProps {
   result: AnalysisResult;
@@ -40,6 +43,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ result, rawTransactions, onResultUpdate, onReset, monthlyResults }: DashboardProps) {
+  const { toast } = useToast();
   const [exporting, setExporting] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [apiKey, setApiKey] = useState("");
@@ -48,6 +52,9 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
   const [coaching, setCoaching] = useState<AICoachingData | null>(null);
   const [aiEnhanced, setAiEnhanced] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [showEncryptModal, setShowEncryptModal] = useState(false);
+  const [encryptPassword, setEncryptPassword] = useState("");
+  const [encryptConfirm, setEncryptConfirm] = useState("");
   const [activeMonth, setActiveMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>("all");
   const [filterMonth, setFilterMonth] = useState<string>("all");
@@ -88,17 +95,14 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
   const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   // Sync filter dropdowns → activeMonth
-  useMemo(() => {
+  useEffect(() => {
     if (filterYear === "all" && filterMonth === "all") {
       setActiveMonth("all");
     } else if (filterYear !== "all" && filterMonth === "all") {
-      // Year selected but no specific month → show all months of that year
-      // We treat this as "all" but filter the data later
       setActiveMonth("all");
     } else if (filterYear !== "all" && filterMonth !== "all") {
       setActiveMonth(`${filterYear}-${filterMonth}`);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterYear, filterMonth]);
 
   // Build filtered result when year is selected but month is "all"
@@ -134,10 +138,9 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
   );
 
   // Keep toggles in sync when switching months/results
-  useMemo(() => {
+  useEffect(() => {
     setExcludedSubcats(new Set((activeResult.excludedTransferGroups || []).map((g) => g.subcategory)));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [excludedGroupsKey]);
+  }, [excludedGroupsKey, activeResult.excludedTransferGroups]);
 
   // Compute adjusted totals based on toggle selections
   const adjustedResult = useMemo(() => {
@@ -181,12 +184,48 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
     return undefined;
   }, [activeMonth, filterYear, monthlyResults]);
 
-  const handleExport = async (type: "csv" | "pdf") => {
+  const handleExport = async (type: "csv" | "pdf" | "encrypted") => {
+    if (type === "encrypted") {
+      setEncryptPassword("");
+      setEncryptConfirm("");
+      setShowEncryptModal(true);
+      return;
+    }
     setExporting(true);
     try {
-      if (type === "csv") exportCSV(activeResult);
-      else exportPDF(activeResult);
+      if (type === "csv") {
+        await exportCSV(activeResult);
+        toast("Exported as XLSX", "success");
+      } else {
+        await exportPDF(activeResult);
+        toast("Exported as PDF", "success");
+      }
+    } catch {
+      toast("Export failed. Please try again.", "error");
     } finally {
+      setTimeout(() => setExporting(false), 500);
+    }
+  };
+
+  const handleEncryptedExport = async () => {
+    if (encryptPassword.length < 4) {
+      toast("Password must be at least 4 characters", "error");
+      return;
+    }
+    if (encryptPassword !== encryptConfirm) {
+      toast("Passwords do not match", "error");
+      return;
+    }
+    setShowEncryptModal(false);
+    setExporting(true);
+    try {
+      await exportEncrypted(activeResult, encryptPassword);
+      toast("Exported encrypted .catto file", "success");
+    } catch {
+      toast("Encrypted export failed", "error");
+    } finally {
+      setEncryptPassword("");
+      setEncryptConfirm("");
       setTimeout(() => setExporting(false), 500);
     }
   };
@@ -208,8 +247,11 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
       setCoaching(coachResult);
       setAiEnhanced(true);
       setShowAIPanel(false);
+      toast("AI analysis complete", "success");
     } catch (err) {
-      setAiError(err instanceof Error ? err.message : "AI analysis failed. Please try again.");
+      const msg = err instanceof Error ? err.message : "AI analysis failed. Please try again.";
+      setAiError(msg);
+      toast(msg, "error");
     } finally {
       setAiLoading(false);
     }
@@ -233,7 +275,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      <main id="main-content" className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
         {/* Page Header + Action Buttons */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -259,22 +301,36 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
             <button
               onClick={() => handleExport("csv")}
               disabled={exporting}
+              aria-busy={exporting}
+              aria-label={exporting ? "Exporting Excel..." : "Export as Excel"}
               className="catto-btn-primary text-sm bg-[var(--catto-blue-500)] text-white shadow-blue-200"
             >
-              <FileSpreadsheet className="w-4 h-4" /> Excel
+              {exporting ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <FileSpreadsheet className="w-4 h-4" aria-hidden="true" />} Excel
             </button>
             <button
               onClick={() => handleExport("pdf")}
               disabled={exporting}
+              aria-busy={exporting}
+              aria-label={exporting ? "Exporting PDF..." : "Export as PDF"}
               className="catto-btn-primary text-sm bg-[var(--catto-blue-600)] text-white shadow-blue-200"
             >
-              <FileText className="w-4 h-4" /> PDF
+              {exporting ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <FileText className="w-4 h-4" aria-hidden="true" />} PDF
             </button>
             <button
               onClick={() => exportMaskedCSV(rawTransactions)}
+              aria-label="Export masked CSV"
               className="catto-btn-primary text-sm bg-[var(--catto-purple-500)] text-white shadow-purple-200"
             >
-              <ShieldCheck className="w-4 h-4" /> Masked CSV
+              <ShieldCheck className="w-4 h-4" aria-hidden="true" /> Masked CSV
+            </button>
+            <button
+              onClick={() => handleExport("encrypted")}
+              disabled={exporting}
+              aria-busy={exporting}
+              aria-label={exporting ? "Exporting encrypted..." : "Export encrypted"}
+              className="catto-btn-primary text-sm bg-[var(--catto-slate-700)] text-white shadow-slate-200"
+            >
+              <Lock className="w-4 h-4" aria-hidden="true" /> Encrypted
             </button>
             <button
               onClick={onReset}
@@ -370,9 +426,9 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-[var(--catto-primary)]" />
-                <h3 className="text-lg font-bold text-[var(--catto-slate-900)]">AI-Powered Analysis ✨</h3>
+                <h2 className="text-lg font-bold text-[var(--catto-slate-900)]">AI-Powered Analysis ✨</h2>
               </div>
-              <button onClick={() => setShowAIPanel(false)} className="p-1.5 hover:bg-[var(--catto-slate-100)] rounded-full transition-colors cursor-pointer">
+              <button onClick={() => setShowAIPanel(false)} className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-[var(--catto-slate-100)] rounded-full transition-colors cursor-pointer" aria-label="Close AI panel">
                 <X className="w-4 h-4 text-[var(--catto-slate-500)]" />
               </button>
             </div>
@@ -574,7 +630,8 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                   </div>
                   <button
                     onClick={() => { setSelectedCategory(null); setCatSearch(""); setCatCountryFilter("all"); setCatSubcategoryFilter("all"); }}
-                    className="p-2 hover:bg-white/80 rounded-full transition-colors cursor-pointer"
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-white/80 rounded-full transition-colors cursor-pointer"
+                    aria-label="Close category detail"
                   >
                     <X className="w-5 h-5 text-[var(--catto-slate-500)]" />
                   </button>
@@ -705,19 +762,19 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                         <table className="w-full text-sm">
                           <thead>
                             <tr className="border-b border-[var(--catto-slate-100)] text-left text-[var(--catto-slate-500)]">
-                              <th className="pb-3 pr-4 font-medium cursor-pointer select-none" onClick={() => toggleCatSort("date")}>
+                              <th className="pb-3 pr-4 font-medium cursor-pointer select-none" tabIndex={0} aria-sort={catSortField === "date" ? (catSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleCatSort("date")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCatSort("date"); } }}>
                                 <span className="inline-flex items-center">Date<CatSortIcon field="date" /></span>
                               </th>
-                              <th className="pb-3 pr-4 font-medium cursor-pointer select-none" onClick={() => toggleCatSort("description")}>
+                              <th className="pb-3 pr-4 font-medium cursor-pointer select-none" tabIndex={0} aria-sort={catSortField === "description" ? (catSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleCatSort("description")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCatSort("description"); } }}>
                                 <span className="inline-flex items-center">Description<CatSortIcon field="description" /></span>
                               </th>
-                              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden sm:table-cell" onClick={() => toggleCatSort("subcategory")}>
+                              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden sm:table-cell" tabIndex={0} aria-sort={catSortField === "subcategory" ? (catSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleCatSort("subcategory")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCatSort("subcategory"); } }}>
                                 <span className="inline-flex items-center">Subcategory<CatSortIcon field="subcategory" /></span>
                               </th>
-                              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden md:table-cell" onClick={() => toggleCatSort("country")}>
+                              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden md:table-cell" tabIndex={0} aria-sort={catSortField === "country" ? (catSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleCatSort("country")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCatSort("country"); } }}>
                                 <span className="inline-flex items-center">Country<CatSortIcon field="country" /></span>
                               </th>
-                              <th className="pb-3 font-medium text-right cursor-pointer select-none" onClick={() => toggleCatSort("amount")}>
+                              <th className="pb-3 font-medium text-right cursor-pointer select-none" tabIndex={0} aria-sort={catSortField === "amount" ? (catSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleCatSort("amount")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCatSort("amount"); } }}>
                                 <span className="inline-flex items-center justify-end">Amount<CatSortIcon field="amount" /></span>
                               </th>
                             </tr>
@@ -759,9 +816,12 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
           <div className="bg-white rounded-xl border border-[var(--catto-slate-100)] shadow-xl p-4 sm:p-6 md:p-8">
             <div className="flex items-center gap-2 mb-4 sm:mb-6">
               <Download className="w-5 h-5 text-[var(--catto-orange-500)]" />
-              <h3 className="text-xl font-bold text-[var(--catto-slate-900)]">Top Money Drains 💸</h3>
+              <h2 className="text-xl font-bold text-[var(--catto-slate-900)]">Top Money Drains 💸</h2>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activeResult.categoryBreakdown.length === 0 && (
+                <p className="col-span-full text-center text-[var(--catto-slate-400)] py-4">No category data</p>
+              )}
               {activeResult.categoryBreakdown.slice(0, 6).map((cat) => {
                 const catTxns = activeResult.transactions.filter((t) => t.category === cat.category);
                 const subMap = new Map<string, { total: number; count: number }>();
@@ -846,7 +906,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
           >
             <div className="flex items-center gap-2">
               <List className="w-5 h-5 text-[var(--catto-primary)]" />
-              <h3 className="text-xl font-bold text-[var(--catto-slate-900)]">All Transactions 📋</h3>
+              <h2 className="text-xl font-bold text-[var(--catto-slate-900)]">All Transactions 📋</h2>
               <span className="text-sm text-[var(--catto-slate-400)] ml-2">({activeResult.transactions.length})</span>
             </div>
             {txExpanded ? <ChevronUp className="w-5 h-5 text-[var(--catto-slate-400)]" /> : <ChevronDown className="w-5 h-5 text-[var(--catto-slate-400)]" />}
@@ -947,22 +1007,22 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-[var(--catto-slate-100)] text-left text-[var(--catto-slate-500)]">
-                        <th className="pb-3 pr-4 font-medium cursor-pointer select-none" onClick={() => toggleSort("date")}>
+                        <th className="pb-3 pr-4 font-medium cursor-pointer select-none" tabIndex={0} aria-sort={txSortField === "date" ? (txSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleSort("date")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSort("date"); } }}>
                           <span className="inline-flex items-center">Date<SortIcon field="date" /></span>
                         </th>
-                        <th className="pb-3 pr-4 font-medium cursor-pointer select-none" onClick={() => toggleSort("description")}>
+                        <th className="pb-3 pr-4 font-medium cursor-pointer select-none" tabIndex={0} aria-sort={txSortField === "description" ? (txSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleSort("description")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSort("description"); } }}>
                           <span className="inline-flex items-center">Description<SortIcon field="description" /></span>
                         </th>
-                        <th className="pb-3 pr-4 font-medium cursor-pointer select-none" onClick={() => toggleSort("category")}>
+                        <th className="pb-3 pr-4 font-medium cursor-pointer select-none" tabIndex={0} aria-sort={txSortField === "category" ? (txSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleSort("category")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSort("category"); } }}>
                           <span className="inline-flex items-center">Category<SortIcon field="category" /></span>
                         </th>
-                        <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden sm:table-cell" onClick={() => toggleSort("subcategory")}>
+                        <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden sm:table-cell" tabIndex={0} aria-sort={txSortField === "subcategory" ? (txSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleSort("subcategory")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSort("subcategory"); } }}>
                           <span className="inline-flex items-center">Subcategory<SortIcon field="subcategory" /></span>
                         </th>
-                        <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden md:table-cell" onClick={() => toggleSort("country")}>
+                        <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden md:table-cell" tabIndex={0} aria-sort={txSortField === "country" ? (txSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleSort("country")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSort("country"); } }}>
                           <span className="inline-flex items-center">Country<SortIcon field="country" /></span>
                         </th>
-                        <th className="pb-3 font-medium text-right cursor-pointer select-none" onClick={() => toggleSort("amount")}>
+                        <th className="pb-3 font-medium text-right cursor-pointer select-none" tabIndex={0} aria-sort={txSortField === "amount" ? (txSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleSort("amount")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSort("amount"); } }}>
                           <span className="inline-flex items-center justify-end">Amount<SortIcon field="amount" /></span>
                         </th>
                       </tr>
@@ -978,7 +1038,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                             </span>
                           </td>
                           <td className="py-3 pr-4 text-[var(--catto-slate-500)] text-xs whitespace-nowrap hidden sm:table-cell">{t.subcategory || "—"}</td>
-                          <td className="py-3 pr-4 text-[var(--catto-slate-500)] whitespace-nowrap text-xs">{t.country || "—"}</td>
+                          <td className="py-3 pr-4 text-[var(--catto-slate-500)] whitespace-nowrap text-xs hidden md:table-cell">{t.country || "—"}</td>
                           <td className={`py-3 text-right font-black whitespace-nowrap ${t.type === "income" ? "text-[var(--catto-green-600)]" : "text-[var(--catto-orange-600)]"}`}>
                             {t.type === "income" ? "+" : "-"}${Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                           </td>
@@ -996,10 +1056,10 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                       </button>
                       <span className="text-[var(--catto-slate-300)]">·</span>
                       <button
-                        onClick={() => setTxShowCount(sorted.length)}
+                        onClick={() => setTxShowCount(Math.min(sorted.length, 500))}
                         className="text-sm font-bold text-[var(--catto-blue-600)] hover:underline cursor-pointer"
                       >
-                        Show all ({sorted.length})
+                        {sorted.length > 500 ? `Show first 500 of ${sorted.length}` : `Show all (${sorted.length})`}
                       </button>
                     </div>
                   )}
@@ -1022,6 +1082,48 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
           All data processed locally — close this page and everything is gone 🐾
         </div>
       </footer>
+
+      {/* Encrypted Export Password Modal */}
+      <FocusTrapDialog open={showEncryptModal} onClose={() => setShowEncryptModal(false)} ariaLabelledBy="encrypt-dialog-title">
+        <h3 id="encrypt-dialog-title" className="text-lg font-bold text-[var(--catto-slate-900)] flex items-center gap-2">
+          <Lock className="w-5 h-5 text-[var(--catto-slate-700)]" aria-hidden="true" /> Encrypted Export
+        </h3>
+        <p className="text-sm text-[var(--catto-slate-500)]">
+          Set a password to encrypt your export file. You will need this password to open it later.
+        </p>
+        <div className="space-y-3">
+          <input
+            type="password"
+            value={encryptPassword}
+            onChange={(e) => setEncryptPassword(e.target.value)}
+            placeholder="Password (min 4 characters)"
+            className="w-full rounded-lg border border-[var(--catto-primary-20)] px-3 py-2.5 text-sm text-[var(--catto-slate-800)] focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-[var(--catto-primary)] outline-none"
+            autoFocus
+          />
+          <input
+            type="password"
+            value={encryptConfirm}
+            onChange={(e) => setEncryptConfirm(e.target.value)}
+            placeholder="Confirm password"
+            className="w-full rounded-lg border border-[var(--catto-primary-20)] px-3 py-2.5 text-sm text-[var(--catto-slate-800)] focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-[var(--catto-primary)] outline-none"
+            onKeyDown={(e) => { if (e.key === "Enter") handleEncryptedExport(); }}
+          />
+        </div>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowEncryptModal(false)}
+            className="flex-1 catto-btn-secondary justify-center py-2.5"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleEncryptedExport}
+            className="flex-1 catto-btn-primary justify-center py-2.5"
+          >
+            <Lock className="w-4 h-4" aria-hidden="true" /> Export
+          </button>
+        </div>
+      </FocusTrapDialog>
     </div>
   );
 }

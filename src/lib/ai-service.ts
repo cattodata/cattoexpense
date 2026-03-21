@@ -127,7 +127,10 @@ Rules:
   };
 }
 
-/** Call Google Gemini API */
+const API_TIMEOUT_MS = 30000; // 30 seconds
+const MAX_RETRIES = 2;
+
+/** Call Google Gemini API with timeout and retry */
 async function callGemini(
   apiKey: string,
   prompt: string,
@@ -136,35 +139,69 @@ async function callGemini(
   const model = "gemini-2.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": apiKey,
-    },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature,
-        maxOutputTokens: 4000,
-        responseMimeType: "application/json",
-      },
-    }),
-  });
+  let lastError: Error | null = null;
 
-  if (!resp.ok) {
-    const err = await resp.text();
-    if (resp.status === 400 || resp.status === 403) {
-      throw new Error("Invalid API key. Please check your Gemini API key.");
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature,
+            maxOutputTokens: 4000,
+            responseMimeType: "application/json",
+          },
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!resp.ok) {
+        const err = await resp.text();
+        if (resp.status === 400 || resp.status === 403) {
+          throw new Error("Invalid API key. Please check your Gemini API key.");
+        }
+        // Retry on server errors (5xx) and rate limits (429)
+        if ((resp.status >= 500 || resp.status === 429) && attempt < MAX_RETRIES) {
+          lastError = new Error(`Gemini API error (${resp.status})`);
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          continue;
+        }
+        throw new Error(`Gemini API error (${resp.status}): ${err}`);
+      }
+
+      const data = await resp.json();
+      const parts = data?.candidates?.[0]?.content?.parts ?? [];
+      const textPart = parts.find((p: { text?: string }) => p.text !== undefined);
+      return textPart?.text ?? "";
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        lastError = new Error("Request timed out. Please try again.");
+        if (attempt < MAX_RETRIES) {
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          continue;
+        }
+      }
+      // Don't retry auth errors
+      if (err instanceof Error && err.message.includes("API key")) throw err;
+      lastError = err instanceof Error ? err : new Error("Unknown error");
+      if (attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
     }
-    throw new Error(`Gemini API error (${resp.status}): ${err}`);
   }
 
-  const data = await resp.json();
-  // Gemini may return multiple parts (e.g. thinking + text) — find the text part
-  const parts = data?.candidates?.[0]?.content?.parts ?? [];
-  const textPart = parts.find((p: { text?: string }) => p.text !== undefined);
-  return textPart?.text ?? "";
+  throw lastError || new Error("Gemini API request failed after retries.");
 }
 
 /** Extract JSON from a response that might have markdown fences or extra text */

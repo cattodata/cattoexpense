@@ -48,6 +48,13 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
       setHeaders(null);
       setLoading(true);
 
+      const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+      if (file.size > MAX_FILE_SIZE) {
+        setError(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum size is 25MB.`);
+        setLoading(false);
+        return;
+      }
+
       const ext = file.name.toLowerCase().split(".").pop();
 
       if (ext !== "csv" && ext !== "txt" && ext !== "pdf") {
@@ -59,8 +66,8 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
       if (ext === "pdf") {
         const reader = new FileReader();
         reader.onload = async (e) => {
+          const arrayBuffer = e.target?.result as ArrayBuffer;
           try {
-            const arrayBuffer = e.target?.result as ArrayBuffer;
             if (!arrayBuffer || arrayBuffer.byteLength === 0) {
               setError("PDF file appears to be empty.");
               setLoading(false);
@@ -69,8 +76,7 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
             const { transactions, rawLines, bankName } = await parsePDF(arrayBuffer);
             if (transactions.length === 0) {
               const sample = rawLines.slice(0, 30).map((l, i) => `${i + 1}: ${l}`).join("\n");
-              console.log("[CattoExpense] PDF raw lines:\n" + rawLines.join("\n"));
-              setError(`No transactions found in this PDF (detected: ${bankName || "Unknown"}).\n\nFirst 30 lines extracted:\n${sample}`);
+              setError(`No transactions found in this PDF (detected: ${bankName || "Unknown"}).\n\nTips:\n• Make sure it's a text-based statement PDF, not a scanned image\n• Try downloading a fresh copy from your bank's website\n• CSV or XLSX exports usually work more reliably\n\n--- Debug info ---\n${sample}`);
               setLoading(false);
               return;
             }
@@ -234,7 +240,8 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
               />
               <button
                 onClick={() => removeFile(f.id)}
-                className="p-1.5 hover:bg-[var(--catto-red-50)] rounded-lg transition-colors cursor-pointer"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-[var(--catto-red-50)] rounded-lg transition-colors cursor-pointer"
+                aria-label={`Remove ${f.name}`}
               >
                 <Trash2 className="w-4 h-4 text-[var(--catto-red-400)]" />
               </button>
@@ -273,10 +280,14 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
       {/* Upload drop zone */}
       {parsedFiles.length === 0 && !headers && !loading && (
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="Upload bank statement files"
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); } }}
           className={`catto-dropzone ${dragOver ? "dragover" : ""}`}
         >
           <input
@@ -304,7 +315,7 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
                 We accept PDF, CSV, and TXT. Max file size 25MB.
               </p>
             </div>
-            <button className="catto-btn-primary" onClick={(e) => e.stopPropagation()}>
+            <button className="catto-btn-primary" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
               Choose Files
             </button>
           </div>
@@ -315,13 +326,13 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
       {parsedFiles.length === 0 && !headers && !loading && (
         <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 text-xs text-[var(--catto-slate-400)]">
           <span className="flex items-center gap-1.5">
-            <Lock className="w-3.5 h-3.5" /> AES-256 Encryption
+            <Lock className="w-3.5 h-3.5" /> 100% Local Processing
           </span>
           <span className="flex items-center gap-1.5">
-            <Eye className="w-3.5 h-3.5" /> No login required
+            <Eye className="w-3.5 h-3.5" /> No data sent to servers
           </span>
           <span className="flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5" /> Auto-delete after 1h
+            <Clock className="w-3.5 h-3.5" /> Stays in your browser
           </span>
         </div>
       )}

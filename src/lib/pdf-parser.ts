@@ -453,9 +453,9 @@ interface PageItem { x: number; y: number; str: string }
 async function extractPageItems(arrayBuffer: ArrayBuffer): Promise<PageItem[][]> {
   const pdfjsLib = await import("pdfjs-dist");
 
-  // Use CDN worker for maximum browser compatibility (including iOS Safari/Chrome)
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
+  // Self-host the worker to avoid CDN supply-chain risks
+  const basePath = process.env.NODE_ENV === "production" ? "/cattoexpense" : "";
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `${basePath}/pdf.worker.min.mjs`;
 
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const allPages: PageItem[][] = [];
@@ -632,7 +632,8 @@ function detectStatementYear(lines: string[]): {
   return { year: yearMatch ? parseInt(yearMatch[1]) : undefined, closingMonth: undefined, startMonth: undefined, startYear: undefined };
 }
 
-function extractTransactionsFromLines(lines: string[], bankName: string): RawTransaction[] {
+function extractTransactionsFromLines(lines: string[], adapter: BankAdapter): RawTransaction[] {
+  const bankName = adapter.name;
   const creditCard = isCreditCardStatement(lines);
   const { year: statementYear, closingMonth, startMonth, startYear } = detectStatementYear(lines);
   const transactions: RawTransaction[] = [];
@@ -706,6 +707,17 @@ function extractTransactionsFromLines(lines: string[], bankName: string): RawTra
         if (isCardPayment(desc)) continue;
         isRefund = isCr;
         amount = isCr ? Math.abs(amount) : -Math.abs(amount);
+      } else if (adapter.trailingMinusIsCredit || adapter.parenMeansDebit) {
+        // Bank-specific sign conventions for transaction/savings accounts
+        const hasTrailing = /\d-\s*$/.test(txAmt.raw);
+        if (adapter.trailingMinusIsCredit && hasTrailing) {
+          // Trailing minus = credit (income) → make positive
+          amount = Math.abs(amount);
+          isRefund = isRefundOrCredit(desc, txAmt.raw);
+        } else {
+          // Plain amount or parens = debit (expense) → make negative
+          amount = -Math.abs(amount);
+        }
       }
       transactions.push({ date, amount, description: desc, source: bankName, isRefund: isRefund || undefined });
       if (foreignSkipLines > 0) i += foreignSkipLines;
@@ -805,6 +817,14 @@ function extractTransactionsFromLines(lines: string[], bankName: string): RawTra
         if (isCardPayment(desc)) { i += linesConsumed; continue; }
         isRefund = isCr;
         amount = isCr ? Math.abs(amount) : -Math.abs(amount);
+      } else if (adapter.trailingMinusIsCredit || adapter.parenMeansDebit) {
+        const hasTrailing = /\d-\s*$/.test(txAmt.raw);
+        if (adapter.trailingMinusIsCredit && hasTrailing) {
+          amount = Math.abs(amount);
+          isRefund = isRefundOrCredit(desc, txAmt.raw);
+        } else {
+          amount = -Math.abs(amount);
+        }
       }
       transactions.push({ date, amount, description: desc, source: bankName, isRefund: isRefund || undefined });
       i += linesConsumed;
@@ -822,6 +842,14 @@ function extractTransactionsFromLines(lines: string[], bankName: string): RawTra
         if (isCardPayment(desc)) continue;
         isRefund = isCr;
         amount = isCr ? Math.abs(amount) : -Math.abs(amount);
+      } else if (adapter.trailingMinusIsCredit || adapter.parenMeansDebit) {
+        const hasTrailing = /\d-\s*$/.test(txAmt.raw);
+        if (adapter.trailingMinusIsCredit && hasTrailing) {
+          amount = Math.abs(amount);
+          isRefund = isRefundOrCredit(desc, txAmt.raw);
+        } else {
+          amount = -Math.abs(amount);
+        }
       }
       transactions.push({ date: lastDate, amount, description: desc, source: bankName, isRefund: isRefund || undefined });
     }
@@ -834,44 +862,49 @@ export async function parsePDF(
   arrayBuffer: ArrayBuffer
 ): Promise<{ transactions: RawTransaction[]; rawLines: string[]; bankName: string }> {
   clearWarnings();
-  const allPages = await extractPageItems(arrayBuffer);
+  try {
+    const allPages = await extractPageItems(arrayBuffer);
 
-  // Build lines (for metadata detection shared by all strategies)
-  const metaLines = groupItemsIntoLines(allPages, 5);
-  // Use adapter for bank detection — centralises bank-specific quirks
-  const adapter = detectBankAdapter(metaLines);
-  const bankName = adapter.name;
-  const creditCard = isCreditCardStatement(metaLines);
-  const { year: statementYear, closingMonth, startMonth, startYear } = detectStatementYear(metaLines);
+    // Build lines (for metadata detection shared by all strategies)
+    const metaLines = groupItemsIntoLines(allPages, 5);
+    // Use adapter for bank detection — centralises bank-specific quirks
+    const adapter = detectBankAdapter(metaLines);
+    const bankName = adapter.name;
+    const creditCard = isCreditCardStatement(metaLines);
+    const { year: statementYear, closingMonth, startMonth, startYear } = detectStatementYear(metaLines);
 
-  infoNote("bank", `Detected bank: ${bankName}${creditCard ? " (credit card)" : ""}`, bankName);
-  if (statementYear) {
-    infoNote("date", `Statement year: ${statementYear}, closing: month ${closingMonth ?? "?"}${startMonth ? `, start: ${startYear}-${startMonth}` : ""}`);
-  }
-
-  // Strategy 1: Column-position-based table extraction (most universal).
-  // Uses X/Y positions of text items directly — works for any tabular PDF.
-  const columnResult = extractFromTableColumns(allPages, bankName, creditCard, statementYear, closingMonth, startMonth, startYear);
-  if (columnResult.length > 0) {
-    const fixed = fixYearOrder(columnResult);
-    infoNote("general", `Extracted ${fixed.length} transactions using column-position strategy`);
-    return { transactions: fixed, rawLines: metaLines, bankName };
-  }
-
-  // Strategy 2: Line-based regex extraction with adaptive Y-thresholds.
-  for (const threshold of [3, 5, 8, 12, 18]) {
-    const lines = groupItemsIntoLines(allPages, threshold);
-    const bn = detectBank(lines);
-    const transactions = extractTransactionsFromLines(lines, bn);
-    if (transactions.length > 0) {
-      const fixed = fixYearOrder(transactions);
-      infoNote("general", `Extracted ${fixed.length} transactions using line-based strategy (Y-threshold=${threshold})`);
-      return { transactions: fixed, rawLines: lines, bankName: bn };
+    infoNote("bank", `Detected bank: ${bankName}${creditCard ? " (credit card)" : ""}`, bankName);
+    if (statementYear) {
+      infoNote("date", `Statement year: ${statementYear}, closing: month ${closingMonth ?? "?"}${startMonth ? `, start: ${startYear}-${startMonth}` : ""}`);
     }
-  }
 
-  warnSkipped("general", "No transactions found in PDF — format may be unsupported");
-  return { transactions: [], rawLines: metaLines, bankName };
+    // Strategy 1: Column-position-based table extraction (most universal).
+    // Uses X/Y positions of text items directly — works for any tabular PDF.
+    const columnResult = extractFromTableColumns(allPages, adapter, creditCard, statementYear, closingMonth, startMonth, startYear);
+    if (columnResult.length > 0) {
+      const fixed = fixYearOrder(columnResult);
+      infoNote("general", `Extracted ${fixed.length} transactions using column-position strategy`);
+      return { transactions: fixed, rawLines: metaLines, bankName };
+    }
+
+    // Strategy 2: Line-based regex extraction with adaptive Y-thresholds.
+    for (const threshold of [3, 5, 8, 12, 18]) {
+      const lines = groupItemsIntoLines(allPages, threshold);
+      const lineAdapter = detectBankAdapter(lines);
+      const transactions = extractTransactionsFromLines(lines, lineAdapter);
+      if (transactions.length > 0) {
+        const fixed = fixYearOrder(transactions);
+        infoNote("general", `Extracted ${fixed.length} transactions using line-based strategy (Y-threshold=${threshold})`);
+        return { transactions: fixed, rawLines: lines, bankName: lineAdapter.name };
+      }
+    }
+
+    warnSkipped("general", "No transactions found in PDF — format may be unsupported");
+    return { transactions: [], rawLines: metaLines, bankName };
+  } finally {
+    // Zero out the PDF ArrayBuffer to prevent sensitive financial data lingering in memory
+    try { new Uint8Array(arrayBuffer).fill(0); } catch { /* buffer may be detached */ }
+  }
 }
 
 /** Post-parse sanity check: detect & fix year errors by ensuring dates are in order.
@@ -973,13 +1006,14 @@ function looksLikeAmount(str: string): boolean {
 
 function extractFromTableColumns(
   allPages: PageItem[][],
-  bankName: string,
+  adapter: BankAdapter,
   creditCard: boolean,
   statementYear: number | undefined,
   closingMonth: number | undefined,
   startMonth?: number,
   startYear?: number,
 ): RawTransaction[] {
+  const bankName = adapter.name;
   const transactions: RawTransaction[] = [];
   let lastDate = "";
 
@@ -1084,6 +1118,14 @@ function extractFromTableColumns(
           if (isCardPayment(desc)) continue;
           isRefund = isCr;
           amount = isCr ? Math.abs(amount) : -Math.abs(amount);
+        } else if (adapter.trailingMinusIsCredit || adapter.parenMeansDebit) {
+          const hasTrailing = /\d-\s*$/.test(amountStr);
+          if (adapter.trailingMinusIsCredit && hasTrailing) {
+            amount = Math.abs(amount);
+            isRefund = isRefundOrCredit(desc, amountStr);
+          } else {
+            amount = -Math.abs(amount);
+          }
         }
         transactions.push({ date: lastDate, amount, description: desc, source: bankName, isRefund: isRefund || undefined });
         continue;
@@ -1114,6 +1156,14 @@ function extractFromTableColumns(
         if (isCardPayment(desc)) continue;
         isRefund = isCr;
         amount = isCr ? Math.abs(amount) : -Math.abs(amount);
+      } else if (adapter.trailingMinusIsCredit || adapter.parenMeansDebit) {
+        const hasTrailing = /\d-\s*$/.test(amountStr);
+        if (adapter.trailingMinusIsCredit && hasTrailing) {
+          amount = Math.abs(amount);
+          isRefund = isRefundOrCredit(desc, amountStr);
+        } else {
+          amount = -Math.abs(amount);
+        }
       }
 
       transactions.push({ date, amount, description: desc, source: bankName, isRefund: isRefund || undefined });

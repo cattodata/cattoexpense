@@ -27,9 +27,9 @@ export default function HistoryPanel({ history, onViewAnalysis, onHistoryChange 
 
   if (history.length === 0) return null;
 
-  const handleDelete = (record: AnalysisRecord) => {
+  const handleDelete = async (record: AnalysisRecord) => {
     if (confirm("Delete this analysis? This cannot be undone.")) {
-      deleteAnalysis(record.userId, record.id);
+      await deleteAnalysis(record.userId, record.id);
       onHistoryChange();
     }
   };
@@ -100,17 +100,19 @@ export default function HistoryPanel({ history, onViewAnalysis, onHistoryChange 
                 <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => onViewAnalysis(record)}
-                    className="p-2 rounded-lg hover:bg-[var(--catto-blue-100)] text-[var(--catto-blue-500)] transition-colors cursor-pointer"
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[var(--catto-blue-100)] text-[var(--catto-blue-500)] transition-colors cursor-pointer"
                     title="View analysis"
+                    aria-label="View analysis"
                   >
-                    <Eye className="w-4 h-4" />
+                    <Eye className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => handleDelete(record)}
-                    className="p-2 rounded-lg hover:bg-[var(--catto-red-50)] text-[var(--catto-slate-400)] hover:text-[var(--catto-red-500)] transition-colors cursor-pointer"
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[var(--catto-red-50)] text-[var(--catto-slate-400)] hover:text-[var(--catto-red-500)] transition-colors cursor-pointer"
                     title="Delete"
+                    aria-label="Delete analysis"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-5 h-5" />
                   </button>
                 </div>
               </div>

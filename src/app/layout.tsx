@@ -14,10 +14,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CattoData — Privacy-First Financial Analytics",
+  title: "CattoExpense — Privacy-First Financial Analytics",
   description:
-    "Analyze bank statements with CattoData. Privacy-first financial analysis that stays on your device. 100% local, 100% private.",
-  keywords: ["bank statement analyzer", "privacy", "financial analytics", "CattoData"],
+    "Analyze bank statements with CattoExpense. Privacy-first financial analysis that stays on your device. 100% local, 100% private.",
+  keywords: ["bank statement analyzer", "privacy", "financial analytics", "CattoExpense"],
+  openGraph: {
+    title: "CattoExpense — Privacy-First Financial Analytics",
+    description: "Analyze bank statements privately. 100% local, no data leaves your browser.",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary",
+    title: "CattoExpense — Privacy-First Financial Analytics",
+    description: "Analyze bank statements privately. 100% local, no data leaves your browser.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
@@ -27,7 +42,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <meta
+          httpEquiv="Content-Security-Policy"
+          content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://generativelanguage.googleapis.com; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';"
+        />
+        <meta name="referrer" content="no-referrer" />
+        <meta httpEquiv="X-Content-Type-Options" content="nosniff" />
+        <meta httpEquiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=()" />
+      </head>
       <body className={`${jakarta.variable} ${geistMono.variable} antialiased`}>
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[200] focus:top-2 focus:left-2 focus:bg-white focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:text-sm focus:font-bold focus:text-[#2563eb]">
+          Skip to content
+        </a>
         {children}
       </body>
     </html>

@@ -52,6 +52,9 @@ const PATTERNS = {
   // Sort codes (UK) / routing numbers
   sortCode: /\b\d{2}[\-]\d{2}[\-]\d{2}\b/g,
 
+  // BSB numbers (Australia) — format: XXX-XXX
+  bsb: /\b\d{3}-\d{3}\b/g,
+
   // IBAN
   iban: /\b[A-Z]{2}\d{2}\s?[A-Z0-9]{4}\s?\d{4}\s?\d{4}(?:\s?\d{4}){0,4}\b/g,
 
@@ -105,6 +108,7 @@ export function maskDescription(description: string): string {
   masked = masked.replace(PATTERNS.toFromName, "[NAME]");
   masked = masked.replace(PATTERNS.refNumber, "[REF]");
   masked = masked.replace(PATTERNS.sortCode, "[CODE]");
+  masked = masked.replace(PATTERNS.bsb, "[BSB]");
   masked = masked.replace(PATTERNS.longDigits, "[ID]");
 
   // --- Merchant-level masking ---

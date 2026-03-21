@@ -24,8 +24,10 @@ function useIsMobile(breakpoint = 640) {
   useEffect(() => {
     const check = () => setMobile(window.innerWidth < breakpoint);
     check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
+    let timeout: ReturnType<typeof setTimeout>;
+    const debounced = () => { clearTimeout(timeout); timeout = setTimeout(check, 150); };
+    window.addEventListener("resize", debounced);
+    return () => { window.removeEventListener("resize", debounced); clearTimeout(timeout); };
   }, [breakpoint]);
   return mobile;
 }
@@ -71,6 +73,13 @@ export function ExpenseBreakdownChart({
   onCategoryClick?: (category: string) => void;
 }) {
   const isMobile = useIsMobile();
+  if (categoryBreakdown.length === 0) {
+    return (
+      <div className="bg-white p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)] text-center text-[var(--catto-slate-400)]">
+        No expense data to display
+      </div>
+    );
+  }
   const pieData = categoryBreakdown.map((c, i) => ({
     name: c.category,
     value: c.total,
@@ -79,8 +88,8 @@ export function ExpenseBreakdownChart({
   const total = pieData.reduce((s, e) => s + e.value, 0);
 
   return (
-    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]">
-      <h3 className="text-xl font-bold text-[var(--catto-slate-900)] mb-4 sm:mb-6">Expense Breakdown</h3>
+    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]" role="img" aria-label="Expense breakdown chart">
+      <h2 className="text-xl font-bold text-[var(--catto-slate-900)] mb-4 sm:mb-6">Expense Breakdown</h2>
       <ResponsiveContainer width="100%" height={isMobile ? 220 : 320}>
         <PieChart>
           <Pie
@@ -146,6 +155,13 @@ export function CategoryBarChart({
   onCategoryClick?: (category: string) => void;
 }) {
   const isMobile = useIsMobile();
+  if (categoryBreakdown.length === 0) {
+    return (
+      <div className="bg-white p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)] text-center text-[var(--catto-slate-400)]">
+        No spending data to display
+      </div>
+    );
+  }
   const barData = categoryBreakdown.map((c, i) => ({
     name: isMobile ? getCategoryEmoji(c.category) : `${getCategoryEmoji(c.category)} ${c.category}`,
     fullName: c.category,
@@ -154,8 +170,8 @@ export function CategoryBarChart({
   }));
 
   return (
-    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]">
-      <h3 className="text-xl font-bold text-[var(--catto-slate-900)] mb-4 sm:mb-6">Spending per Category</h3>
+    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]" role="img" aria-label="Spending per category chart">
+      <h2 className="text-xl font-bold text-[var(--catto-slate-900)] mb-4 sm:mb-6">Spending per Category</h2>
       <ResponsiveContainer width="100%" height={isMobile ? 260 : 320}>
         <BarChart data={barData} margin={{ bottom: isMobile ? 10 : 90 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -217,6 +233,13 @@ export function SubcategoryDonutChart({
   categoryName: string;
   onSubcategoryClick?: (subcategory: string) => void;
 }) {
+  if (subcategories.length === 0) {
+    return (
+      <div className="text-center text-sm text-[var(--catto-slate-400)] py-4">
+        No subcategory data
+      </div>
+    );
+  }
   const SUB_COLORS = ["#60a5fa","#f472b6","#34d399","#fbbf24","#a78bfa","#fb923c","#22d3ee","#f87171","#4ade80","#e879f9"];
   const pieData = subcategories.map((s, i) => ({
     name: s.name,
@@ -225,7 +248,7 @@ export function SubcategoryDonutChart({
   }));
 
   return (
-    <div>
+    <div role="img" aria-label={`${categoryName} subcategory breakdown chart`}>
       <h4 className="text-sm font-bold text-[var(--catto-slate-700)] mb-3">
         {getCategoryEmoji(categoryName)} Subcategory Breakdown
       </h4>
@@ -275,9 +298,9 @@ export function IncomeExpensesChart({
 
   return (
     <>
-      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]">
+      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]" role="img" aria-label="Income vs expenses over time chart">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4 sm:mb-6">
-          <h3 className="text-lg sm:text-xl font-bold text-[var(--catto-slate-900)]">Income vs Expenses Over Time 📊</h3>
+          <h2 className="text-lg sm:text-xl font-bold text-[var(--catto-slate-900)]">Income vs Expenses Over Time 📊</h2>
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-1.5">
               <div className="w-3 h-3 rounded-full bg-[#34d399]" />
@@ -337,7 +360,7 @@ export function IncomeExpensesChart({
         return (
           <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)] mt-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4 sm:mb-6">
-              <h3 className="text-lg sm:text-xl font-bold text-[var(--catto-slate-900)]">Income Sources 💰</h3>
+              <h2 className="text-lg sm:text-xl font-bold text-[var(--catto-slate-900)]">Income Sources 💰</h2>
               <span className="text-lg font-black text-[var(--catto-green-600)]">
                 ${totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </span>
