@@ -169,8 +169,8 @@ export default function InsightHub({ result, previousResult, monthlyResults, act
               <div className={`mt-0.5 shrink-0 ${iconStyles[insight.type]}`}>
                 {insight.icon}
               </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-[var(--catto-slate-800)]">{insight.text}</p>
+              <div className="min-w-0 overflow-hidden">
+                <p className="text-sm font-semibold text-[var(--catto-slate-800)] break-words">{insight.text}</p>
                 {insight.detail && (
                   <p className="text-xs text-[var(--catto-slate-500)] mt-1">{insight.detail}</p>
                 )}

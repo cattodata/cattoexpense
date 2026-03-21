@@ -183,7 +183,7 @@ function HomeInner() {
     <div className="min-h-screen bg-[var(--background)] font-[family-name:var(--font-jakarta)]">
       {/* Top Bar — same as dashboard */}
       <header className="sticky top-0 z-50 border-b border-[var(--catto-primary-20)] bg-white/80 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-6 flex h-14 items-center justify-between">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 flex h-14 items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-[var(--catto-primary)] flex items-center justify-center text-sm font-bold text-[var(--catto-slate-900)]">
               CE
@@ -233,7 +233,7 @@ function HomeInner() {
       <main id="main-content" className="max-w-4xl mx-auto px-6">
         {/* Hero — clean & simple like original */}
         <section className="text-center py-16 md:py-24">
-          <h1 className="catto-heading text-4xl md:text-6xl mb-4">
+          <h1 className="catto-heading text-2xl sm:text-4xl md:text-6xl mb-4">
             Analyze your spending{" "}
             <span className="text-[var(--catto-primary)]">without giving up your privacy</span> 🐱
           </h1>

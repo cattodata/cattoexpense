@@ -81,7 +81,7 @@ export default function HistoryPanel({ history, onViewAnalysis, onHistoryChange 
                     </span>
                     <span>{record.transactionCount} transactions</span>
                   </div>
-                  <div className="flex items-center gap-4 mt-2 text-xs">
+                  <div className="flex items-center flex-wrap gap-x-4 gap-y-1 mt-2 text-xs">
                     <span className="flex items-center gap-1 text-[var(--catto-green-600)] font-bold">
                       <TrendingUp className="w-3 h-3" />
                       ${record.totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -97,7 +97,7 @@ export default function HistoryPanel({ history, onViewAnalysis, onHistoryChange 
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 shrink-0">
                   <button
                     onClick={() => onViewAnalysis(record)}
                     className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg hover:bg-[var(--catto-blue-100)] text-[var(--catto-blue-500)] transition-colors cursor-pointer"

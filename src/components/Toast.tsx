@@ -58,7 +58,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {/* Toast container */}
       <div
-        className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm"
+        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 sm:left-auto z-50 flex flex-col gap-2 sm:max-w-sm"
         role="log"
         aria-live={toasts.some((t) => t.type === "error") ? "assertive" : "polite"}
       >

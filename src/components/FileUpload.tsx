@@ -236,7 +236,7 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
                 value={f.bank}
                 onChange={(e) => updateBankName(f.id, e.target.value)}
                 placeholder="Bank name"
-                className="w-20 sm:w-28 text-xs border border-[var(--catto-primary-20)] rounded-lg px-2 py-1.5 text-[var(--catto-slate-700)] focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-[var(--catto-primary)] outline-none"
+                className="w-24 sm:w-32 text-xs border border-[var(--catto-primary-20)] rounded-lg px-2 py-1.5 text-[var(--catto-slate-700)] focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-[var(--catto-primary)] outline-none shrink-0"
               />
               <button
                 onClick={() => removeFile(f.id)}
@@ -308,7 +308,7 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
               <Upload className={`w-8 h-8 ${dragOver ? "text-[var(--catto-primary)]" : "text-[var(--catto-primary)]"}`} />
             </div>
             <div>
-              <h3 className="text-2xl font-bold text-[var(--catto-slate-900)]">
+              <h3 className="text-xl sm:text-2xl font-bold text-[var(--catto-slate-900)]">
                 Drop your bank statements here
               </h3>
               <p className="text-[var(--catto-slate-500)] mt-2">

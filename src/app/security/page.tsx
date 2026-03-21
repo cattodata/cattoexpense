@@ -38,7 +38,7 @@ export default function SecurityPage() {
 
       <main id="main-content" className="max-w-4xl mx-auto px-6 py-12 md:py-16">
         {/* Hero */}
-        <section className="text-center mb-16">
+        <section className="text-center mb-8 sm:mb-16">
           <div className="w-20 h-20 rounded-full bg-[var(--catto-green-50)] flex items-center justify-center mx-auto mb-6">
             <ShieldCheck className="w-10 h-10 text-[var(--catto-green-600)]" />
           </div>
@@ -302,14 +302,15 @@ export default function SecurityPage() {
         </section>
 
         {/* CTA */}
-        <section className="text-center pb-8">
-          <Link href="/" className="catto-btn-primary text-base py-3 px-8">
-            Back to App
-          </Link>
-          <span className="mx-3 text-[var(--catto-slate-300)]">|</span>
-          <Link href="/supported" className="catto-btn-secondary text-base py-3 px-8">
-            Supported Banks
-          </Link>
+        <section className="pb-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link href="/" className="catto-btn-primary text-base py-3 px-8 w-full sm:w-auto justify-center">
+              Back to App
+            </Link>
+            <Link href="/supported" className="catto-btn-secondary text-base py-3 px-8 w-full sm:w-auto justify-center">
+              Supported Banks
+            </Link>
+          </div>
         </section>
       </main>
 
@@ -343,11 +344,18 @@ function ArchNode({ icon, title, desc, color, bg }: {
 
 function ArchArrow() {
   return (
-    <div className="hidden md:flex items-center justify-center" aria-hidden="true">
-      <svg width="32" height="16" viewBox="0 0 32 16" fill="none" className="text-[var(--catto-slate-300)]">
-        <path d="M0 8h24m0 0l-6-5.5M24 8l-6 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    </div>
+    <>
+      <div className="flex md:hidden justify-center py-1" aria-hidden="true">
+        <svg width="16" height="20" viewBox="0 0 16 20" fill="none" className="text-[var(--catto-slate-300)]">
+          <path d="M8 0v14m0 0l-4.5-5M8 14l4.5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
+      <div className="hidden md:flex items-center justify-center" aria-hidden="true">
+        <svg width="32" height="16" viewBox="0 0 32 16" fill="none" className="text-[var(--catto-slate-300)]">
+          <path d="M0 8h24m0 0l-6-5.5M24 8l-6 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
+    </>
   );
 }
 

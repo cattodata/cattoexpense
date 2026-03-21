@@ -101,7 +101,7 @@ export default function SummaryCards({ result, previousResult }: SummaryCardsPro
           <div className="min-w-0">
             <p className="text-[var(--catto-slate-500)] text-sm font-medium">{card.label}</p>
             <div className="flex items-center gap-2">
-              <p className={`text-lg font-black ${card.valueColor} truncate`}>{card.value}</p>
+              <p className={`text-base sm:text-lg font-black ${card.valueColor} truncate`}>{card.value}</p>
               {card.comparison}
             </div>
           </div>

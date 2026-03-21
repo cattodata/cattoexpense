@@ -74,7 +74,7 @@ export default function FocusTrapDialog({ open, onClose, ariaLabelledBy, childre
         aria-labelledby={ariaLabelledBy}
         onKeyDown={handleKeyDown}
         tabIndex={-1}
-        className={className || "bg-white rounded-xl shadow-2xl p-6 max-w-sm mx-4 space-y-4 outline-none"}
+        className={className || "bg-white rounded-xl shadow-2xl p-6 max-w-sm mx-3 sm:mx-4 space-y-4 outline-none"}
       >
         {children}
       </div>

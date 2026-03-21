@@ -23,7 +23,7 @@ export default function PrivacyPreview({ sampleDescriptions }: PrivacyPreviewPro
         </div>
         <button
           onClick={() => setShowRaw(!showRaw)}
-          className="flex items-center gap-1 text-xs text-[var(--catto-slate-400)] hover:text-[var(--catto-slate-600)] transition-colors cursor-pointer"
+          className="flex items-center gap-1 text-xs text-[var(--catto-slate-400)] hover:text-[var(--catto-slate-600)] transition-colors cursor-pointer min-h-[44px] px-2"
         >
           {showRaw ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           {showRaw ? "Hide original" : "Compare with original"}

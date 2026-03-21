@@ -21,7 +21,7 @@ export default function Insights({ recurring, spikes }: InsightsProps) {
         {recurring.length === 0 ? (
           <p className="text-sm text-[var(--catto-slate-400)]">No recurring charges detected. 🐱</p>
         ) : (
-          <div className="space-y-3 max-h-80 overflow-y-auto">
+          <div className="space-y-3 sm:max-h-80 sm:overflow-y-auto">
             {recurring.map((item, i) => (
               <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-[var(--catto-slate-50)] hover:bg-[var(--catto-primary-light)] transition-colors">
                 <div className="min-w-0 flex-1">
@@ -55,7 +55,7 @@ export default function Insights({ recurring, spikes }: InsightsProps) {
         {spikes.length === 0 ? (
           <p className="text-sm text-[var(--catto-slate-400)]">No unusual spending spikes detected. 😸</p>
         ) : (
-          <div className="space-y-3 max-h-80 overflow-y-auto">
+          <div className="space-y-3 sm:max-h-80 sm:overflow-y-auto">
             {spikes.map((spike, i) => (
               <div key={i} className="flex items-center justify-between p-4 rounded-xl bg-[var(--catto-orange-50)] hover:bg-[var(--catto-orange-100)] transition-colors">
                 <div className="min-w-0 flex-1">

@@ -12,10 +12,12 @@ const TIP_EMOJIS = ["😺", "🧶", "🍗", "🎯", "💡", "🐾", "✨", "🎀
 export default function AICoaching({ coaching }: AICoachingProps) {
   return (
     <section className="bg-[var(--catto-primary-light)] rounded-xl p-4 sm:p-6 md:p-8 border border-[var(--catto-primary-20)]">
-      <div className="flex flex-wrap items-center gap-3 mb-4 sm:mb-6">
-        <span className="text-3xl">✨</span>
-        <h3 className="text-xl sm:text-2xl font-bold text-[var(--catto-slate-800)]">AI Cat Coaching Suggestions</h3>
-        <span className="catto-badge catto-badge-green">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex items-center gap-3 mb-2 sm:mb-0">
+          <span className="text-3xl">✨</span>
+          <h3 className="text-xl sm:text-2xl font-bold text-[var(--catto-slate-800)]">AI Cat Coaching Suggestions</h3>
+        </div>
+        <span className="catto-badge catto-badge-green mt-1 sm:mt-0 inline-flex">
           <ShieldCheck className="w-3 h-3" />
           PII-free analysis
         </span>

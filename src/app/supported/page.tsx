@@ -209,14 +209,15 @@ export default function SupportedPage() {
         </section>
 
         {/* CTA */}
-        <section className="text-center pb-8">
-          <Link href="/" className="catto-btn-primary text-base py-3 px-8">
-            Back to App
-          </Link>
-          <span className="mx-3 text-[var(--catto-slate-300)]">|</span>
-          <Link href="/security" className="catto-btn-secondary text-base py-3 px-8">
-            Security & Architecture
-          </Link>
+        <section className="pb-8">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link href="/" className="catto-btn-primary text-base py-3 px-8 w-full sm:w-auto justify-center">
+              Back to App
+            </Link>
+            <Link href="/security" className="catto-btn-secondary text-base py-3 px-8 w-full sm:w-auto justify-center">
+              Security & Architecture
+            </Link>
+          </div>
         </section>
       </main>
 

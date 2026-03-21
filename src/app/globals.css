@@ -115,6 +115,7 @@ body {
   border-radius: 9999px;
   font-weight: 700;
   font-size: 0.875rem;
+  min-height: 44px;
   transition: all 0.2s ease;
   cursor: pointer;
   border: none;
@@ -156,6 +157,7 @@ body {
   border-radius: 9999px;
   font-weight: 600;
   font-size: 0.875rem;
+  min-height: 44px;
   border: 2px solid var(--catto-primary-30);
   transition: all 0.2s ease;
   cursor: pointer;
@@ -314,4 +316,12 @@ body {
   .catto-btn-primary:hover {
     transform: none;
   }
+}
+
+/* Hide scrollbar utility */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }

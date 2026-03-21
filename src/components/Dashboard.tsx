@@ -261,7 +261,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
     <div className="min-h-screen bg-[var(--background)] font-[family-name:var(--font-jakarta)]">
       {/* Top Bar */}
       <header className="sticky top-0 z-50 border-b border-[var(--catto-primary-20)] bg-white/80 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-6 flex h-14 items-center justify-between">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 flex h-14 items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-[var(--catto-primary)] flex items-center justify-center text-sm font-bold text-[var(--catto-slate-900)]">
               CE
@@ -279,12 +279,12 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
         {/* Page Header + Action Buttons */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-black text-[var(--catto-slate-900)]">Your Spending Analysis 🐱</h1>
+            <h1 className="text-2xl sm:text-3xl font-black text-[var(--catto-slate-900)]">Your Spending Analysis 🐱</h1>
             <p className="text-[var(--catto-slate-500)] mt-1">
               {activeResult.transactions.length} transactions &bull; {activeResult.dateRange.from} to {activeResult.dateRange.to}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto pb-1 -mb-1 scrollbar-none">
             {!aiEnhanced ? (
               <button
                 onClick={() => setShowAIPanel(!showAIPanel)}
@@ -351,7 +351,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                 <select
                   value={filterYear}
                   onChange={(e) => { setFilterYear(e.target.value); setFilterMonth("all"); setSelectedCategory(null); }}
-                  className="text-sm font-bold border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
+                  className="text-sm font-bold border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 min-w-[88px] min-h-[44px] bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
                 >
                   <option value="all">All Years</option>
                   {availableYears.map((y) => (
@@ -361,7 +361,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                 <select
                   value={filterMonth}
                   onChange={(e) => { setFilterMonth(e.target.value); setSelectedCategory(null); }}
-                  className="text-sm font-bold border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
+                  className="text-sm font-bold border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 min-w-[88px] min-h-[44px] bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
                 >
                   <option value="all">{filterYear === "all" ? "All Months" : `All ${filterYear}`}</option>
                   {availableMonths.map((m) => {
@@ -620,7 +620,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
               <div className="bg-gradient-to-r from-[var(--catto-primary-light)] to-white px-4 sm:px-8 py-4 sm:py-6 border-b border-[var(--catto-slate-100)]">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="text-2xl font-extrabold text-[var(--catto-slate-900)]">
+                    <h3 className="text-xl sm:text-2xl font-extrabold text-[var(--catto-slate-900)]">
                       {getCategoryEmoji(selectedCategory)} {selectedCategory}
                     </h3>
                     <p className="text-sm text-[var(--catto-slate-500)] mt-1">
@@ -690,7 +690,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
 
               {/* Filters & Table */}
               <div className="px-4 sm:px-8 py-4 sm:py-6">
-                <div className="flex flex-wrap items-center gap-3 mb-4">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 mb-4">
                   <div className="relative flex-1 min-w-[200px]">
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--catto-slate-400)]" />
                     <input
@@ -698,13 +698,13 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                       placeholder="Search description..."
                       value={catSearch}
                       onChange={(e) => setCatSearch(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-sm border border-[var(--catto-slate-200)] rounded-lg bg-white text-[var(--catto-slate-800)] placeholder:text-[var(--catto-slate-400)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-transparent"
+                      className="w-full pl-9 pr-3 py-2 min-h-[44px] text-sm border border-[var(--catto-slate-200)] rounded-lg bg-white text-[var(--catto-slate-800)] placeholder:text-[var(--catto-slate-400)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-transparent"
                     />
                   </div>
                   <select
                     value={catCountryFilter}
                     onChange={(e) => setCatCountryFilter(e.target.value)}
-                    className="text-sm border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
+                    className="text-sm border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 min-h-[44px] bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
                   >
                     <option value="all">All Countries</option>
                     {Array.from(new Set(catTransactions.map((t) => t.country || "Unknown"))).sort().map((c) => (
@@ -714,7 +714,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                   {(catSearch || catCountryFilter !== "all" || catSubcategoryFilter !== "all") && (
                     <button
                       onClick={() => { setCatSearch(""); setCatCountryFilter("all"); setCatSubcategoryFilter("all"); }}
-                      className="text-xs text-[var(--catto-slate-500)] hover:text-[var(--catto-slate-800)] underline cursor-pointer"
+                      className="text-xs text-[var(--catto-slate-500)] hover:text-[var(--catto-slate-800)] underline cursor-pointer min-h-[44px] px-2"
                     >
                       Clear filters
                     </button>
@@ -838,10 +838,11 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                 const hasSubs = !(subs.length <= 1 && subs[0]?.name === "Other");
 
                 return (
-                  <div
+                  <button
                     key={cat.category}
-                    className="p-4 rounded-xl border border-[var(--catto-slate-100)] hover:shadow-md transition-all cursor-pointer"
+                    className="p-4 rounded-xl border border-[var(--catto-slate-100)] hover:shadow-md transition-all cursor-pointer text-left w-full"
                     onClick={() => setSelectedCategory(cat.category)}
+                    aria-label={`View ${cat.category} details`}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-[var(--catto-primary-light)] flex items-center justify-center text-xl shrink-0">
@@ -876,7 +877,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                         )}
                       </div>
                     )}
-                  </div>
+                  </button>
                 );
               })}
             </div>
@@ -916,7 +917,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
           <div className="px-4 sm:px-6 md:px-8 pb-4 sm:pb-6 md:pb-8">
 
           {/* Filters row */}
-          <div className="flex flex-wrap items-center gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 mb-4">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--catto-slate-400)]" />
               <input
@@ -924,42 +925,44 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                 placeholder="Search description..."
                 value={txSearch}
                 onChange={(e) => setTxSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm border border-[var(--catto-slate-200)] rounded-lg bg-white text-[var(--catto-slate-800)] placeholder:text-[var(--catto-slate-400)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-transparent"
+                className="w-full pl-9 pr-3 py-2 min-h-[44px] text-sm border border-[var(--catto-slate-200)] rounded-lg bg-white text-[var(--catto-slate-800)] placeholder:text-[var(--catto-slate-400)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-transparent"
               />
             </div>
-            <select
-              value={txCategoryFilter}
-              onChange={(e) => setTxCategoryFilter(e.target.value)}
-              className="text-sm border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
-            >
-              <option value="all">All Categories</option>
-              {Array.from(new Set(activeResult.transactions.map((t) => t.category))).sort().map((cat) => (
-                <option key={cat} value={cat}>{getCategoryEmoji(cat)} {cat}</option>
-              ))}
-            </select>
-            <select
-              value={txCountryFilter}
-              onChange={(e) => setTxCountryFilter(e.target.value)}
-              className="text-sm border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
-            >
-              <option value="all">All Countries</option>
-              {Array.from(new Set(activeResult.transactions.map((t) => t.country || "Unknown"))).sort().map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-            <select
-              value={txTypeFilter}
-              onChange={(e) => setTxTypeFilter(e.target.value)}
-              className="text-sm border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
-            >
-              <option value="all">All Types</option>
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-            </select>
+            <div className="flex gap-2 overflow-x-auto scrollbar-none">
+              <select
+                value={txCategoryFilter}
+                onChange={(e) => setTxCategoryFilter(e.target.value)}
+                className="text-sm border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 min-h-[44px] bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
+              >
+                <option value="all">All Categories</option>
+                {Array.from(new Set(activeResult.transactions.map((t) => t.category))).sort().map((cat) => (
+                  <option key={cat} value={cat}>{getCategoryEmoji(cat)} {cat}</option>
+                ))}
+              </select>
+              <select
+                value={txCountryFilter}
+                onChange={(e) => setTxCountryFilter(e.target.value)}
+                className="text-sm border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 min-h-[44px] bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
+              >
+                <option value="all">All Countries</option>
+                {Array.from(new Set(activeResult.transactions.map((t) => t.country || "Unknown"))).sort().map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+              <select
+                value={txTypeFilter}
+                onChange={(e) => setTxTypeFilter(e.target.value)}
+                className="text-sm border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 min-h-[44px] bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
+              >
+                <option value="all">All Types</option>
+                <option value="expense">Expense</option>
+                <option value="income">Income</option>
+              </select>
+            </div>
             {(txSearch || txCategoryFilter !== "all" || txCountryFilter !== "all" || txTypeFilter !== "all") && (
               <button
                 onClick={() => { setTxSearch(""); setTxCategoryFilter("all"); setTxCountryFilter("all"); setTxTypeFilter("all"); }}
-                className="text-xs text-[var(--catto-slate-500)] hover:text-[var(--catto-slate-800)] underline cursor-pointer"
+                className="text-xs text-[var(--catto-slate-500)] hover:text-[var(--catto-slate-800)] underline cursor-pointer min-h-[44px] px-2"
               >
                 Clear filters
               </button>
@@ -1013,7 +1016,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                         <th className="pb-3 pr-4 font-medium cursor-pointer select-none" tabIndex={0} aria-sort={txSortField === "description" ? (txSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleSort("description")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSort("description"); } }}>
                           <span className="inline-flex items-center">Description<SortIcon field="description" /></span>
                         </th>
-                        <th className="pb-3 pr-4 font-medium cursor-pointer select-none" tabIndex={0} aria-sort={txSortField === "category" ? (txSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleSort("category")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSort("category"); } }}>
+                        <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden sm:table-cell" tabIndex={0} aria-sort={txSortField === "category" ? (txSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleSort("category")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSort("category"); } }}>
                           <span className="inline-flex items-center">Category<SortIcon field="category" /></span>
                         </th>
                         <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden sm:table-cell" tabIndex={0} aria-sort={txSortField === "subcategory" ? (txSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleSort("subcategory")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSort("subcategory"); } }}>
@@ -1031,8 +1034,11 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                       {sorted.slice(0, txShowCount).map((t, i) => (
                         <tr key={i} className="border-b border-[var(--catto-slate-50)] hover:bg-[var(--catto-primary-light)] transition-colors">
                           <td className="py-3 pr-4 text-[var(--catto-slate-600)] whitespace-nowrap">{t.date}</td>
-                          <td className="py-3 pr-4 text-[var(--catto-slate-800)] font-medium max-w-[180px] sm:max-w-none truncate">{t.description}</td>
-                          <td className="py-3 pr-4 whitespace-nowrap">
+                          <td className="py-3 pr-4 min-w-0">
+                            <p className="text-sm font-medium text-[var(--catto-slate-800)] truncate">{t.description}</p>
+                            <span className="sm:hidden text-xs text-[var(--catto-slate-500)]">{getCategoryEmoji(t.category)} {t.category}</span>
+                          </td>
+                          <td className="py-3 pr-4 whitespace-nowrap hidden sm:table-cell">
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-[var(--catto-primary-light)] text-[var(--catto-slate-700)]">
                               {getCategoryEmoji(t.category)} {t.category}
                             </span>

@@ -233,6 +233,8 @@ export function SubcategoryDonutChart({
   categoryName: string;
   onSubcategoryClick?: (subcategory: string) => void;
 }) {
+  const isMobile = useIsMobile();
+
   if (subcategories.length === 0) {
     return (
       <div className="text-center text-sm text-[var(--catto-slate-400)] py-4">
@@ -252,7 +254,7 @@ export function SubcategoryDonutChart({
       <h4 className="text-sm font-bold text-[var(--catto-slate-700)] mb-3">
         {getCategoryEmoji(categoryName)} Subcategory Breakdown
       </h4>
-      <ResponsiveContainer width="100%" height={240}>
+      <ResponsiveContainer width="100%" height={isMobile ? 200 : 240}>
         <PieChart>
           <Pie
             data={pieData}
@@ -262,7 +264,7 @@ export function SubcategoryDonutChart({
             outerRadius={75}
             paddingAngle={2}
             dataKey="value"
-            label={renderSubcategoryLabel}
+            label={isMobile ? false : renderSubcategoryLabel}
             labelLine={false}
             onClick={(_data, index) => onSubcategoryClick?.(pieData[index].name)}
             className="cursor-pointer"
@@ -277,6 +279,16 @@ export function SubcategoryDonutChart({
           />
         </PieChart>
       </ResponsiveContainer>
+      {isMobile && (
+        <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+          {pieData.map((entry, i) => (
+            <button key={i} onClick={() => onSubcategoryClick?.(entry.name)} className="flex items-center gap-1.5 text-left py-0.5 cursor-pointer">
+              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: entry.fill }} />
+              <span className="text-xs font-medium text-[var(--catto-slate-600)] truncate">{entry.name}</span>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -347,6 +359,7 @@ export function IncomeExpensesChart({
 
       {/* Income Sources */}
       {totalIncome > 0 && (() => {
+        const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
         const sourceMap = new Map<string, number>();
         for (const t of incomeTransactions) {
           const label = t.subcategory || t.category || "Other Income";
@@ -368,7 +381,7 @@ export function IncomeExpensesChart({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
-                  <Pie data={incomeData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value" label={({ name, percent }) => { const pct = Math.round((percent || 0) * 100); return pct >= 3 ? `${name} ${pct}%` : null; }} labelLine={false}>
+                  <Pie data={incomeData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value" label={isMobile ? false : ({ name, percent }) => { const pct = Math.round((percent || 0) * 100); return pct >= 3 ? `${name} ${pct}%` : null; }} labelLine={false}>
                     {incomeData.map((_entry, index) => (
                       <Cell key={index} fill={INCOME_COLORS[index % INCOME_COLORS.length]} stroke="white" strokeWidth={2} />
                     ))}

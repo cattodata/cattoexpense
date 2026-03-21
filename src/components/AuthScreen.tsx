@@ -44,7 +44,7 @@ export default function AuthScreen({ onAuth, onSkip }: AuthScreenProps) {
     <div className="min-h-screen bg-[var(--background)] font-[family-name:var(--font-jakarta)] flex flex-col">
       {/* Top Bar */}
       <header className="sticky top-0 z-50 border-b border-[var(--catto-primary-20)] bg-white/80 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-6 flex h-14 items-center justify-between">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 flex h-14 items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-[var(--catto-primary)] flex items-center justify-center text-sm font-bold text-[var(--catto-slate-900)]">
               CE
@@ -53,7 +53,7 @@ export default function AuthScreen({ onAuth, onSkip }: AuthScreenProps) {
           </div>
           <div className="flex items-center gap-2 text-[var(--catto-green-600)]">
             <ShieldCheck className="w-4 h-4" />
-            <span className="text-sm font-bold">100% Local Processing</span>
+            <span className="text-sm font-bold hidden sm:inline">100% Local Processing</span>
           </div>
         </div>
       </header>
