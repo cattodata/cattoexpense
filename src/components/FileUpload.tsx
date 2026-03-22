@@ -418,7 +418,7 @@ export default function FileUpload({ onParsed, onImportResult }: FileUploadProps
             <div>
               <p className="text-lg font-bold text-[var(--catto-slate-900)]">Parsing statement...</p>
               <p className="text-sm text-[var(--catto-slate-500)] mt-1">
-                Processing locally — nothing is uploaded 🐾
+                Processing locally — nothing leaves your browser
               </p>
             </div>
           </div>

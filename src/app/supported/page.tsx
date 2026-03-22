@@ -225,7 +225,7 @@ export default function SupportedPage() {
       <footer className="border-t border-[var(--catto-primary-20)] py-6">
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-center gap-2 text-sm text-[var(--catto-slate-400)]">
           <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-          All data processed locally — close this page and everything is gone
+          All data processed locally — close the tab and everything is gone
         </div>
       </footer>
     </div>

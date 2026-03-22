@@ -84,7 +84,7 @@ export default function SecurityPage() {
                 step: "4",
                 icon: Trash2,
                 title: "Gone when you close",
-                desc: "Close the tab and the data disappears. Optionally save encrypted history locally.",
+                desc: "Close the tab and all data vanishes. Nothing is stored anywhere.",
                 color: "var(--catto-orange-600)",
                 bg: "var(--catto-orange-50)",
               },
@@ -115,34 +115,34 @@ export default function SecurityPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {[
               {
-                icon: Lock,
-                title: "AES-256 Encryption",
-                desc: "Saved history is encrypted with AES-GCM using a key derived from your password via PBKDF2 (100,000 iterations). Even if someone accesses your browser storage, they can't read your data without your password.",
+                icon: Server,
+                title: "No Server, No Database",
+                desc: "CattoExpense is a static site hosted on GitHub Pages. There is no backend server, no API, no database. We have nowhere to store your data even if we wanted to.",
               },
               {
                 icon: EyeOff,
                 title: "PII Masking for AI",
-                desc: "When you opt into AI features, account numbers, card numbers, and names are stripped before anything is sent. The AI only sees masked descriptions and aggregated totals — never your raw financial data.",
-              },
-              {
-                icon: Server,
-                title: "No Server, No Database",
-                desc: "CattoExpense is a static site hosted on GitHub Pages. There is no backend server, no API, no database. It's impossible for us to collect your data because we have nowhere to store it.",
+                desc: "When you opt into AI features, card numbers, account numbers, names, and addresses are stripped before anything leaves your browser. The AI only sees masked descriptions and aggregated totals.",
               },
               {
                 icon: Fingerprint,
-                title: "Auto-Lock & Session Expiry",
-                desc: "Your session auto-locks after 15 minutes of inactivity. Sessions expire after 30 days. The encryption key is held only in memory and cleared on logout.",
+                title: "Fully Stateless",
+                desc: "No accounts, no login, no sessions, no localStorage. The app holds data only in memory while you use it. Close the tab and everything is gone.",
               },
               {
                 icon: KeyRound,
-                title: "Password-Protected Export",
-                desc: "Export your analysis as an encrypted .catto file protected with a password of your choice. Uses PBKDF2 key derivation + AES-GCM encryption.",
+                title: "Encrypted Export",
+                desc: "Optionally export your analysis as an encrypted .catto file. Uses PBKDF2 key derivation (100,000 iterations) + AES-256-GCM encryption. The file stays on your device.",
               },
               {
                 icon: Eye,
                 title: "Content Security Policy",
-                desc: "Strict CSP headers block unauthorized scripts, prevent clickjacking (frame-ancestors: none), and restrict connections to only the AI API endpoint you opt into.",
+                desc: "Strict CSP headers block unauthorized scripts, prevent clickjacking, and restrict connections to only the AI API endpoint you opt into.",
+              },
+              {
+                icon: Lock,
+                title: "Open Source",
+                desc: "Every claim on this page can be verified by reading the source code. No hidden tracking, no obfuscated data collection.",
               },
             ].map((f) => (
               <div key={f.title} className="bg-white rounded-xl border border-[var(--catto-slate-100)] p-5 flex gap-4">
@@ -164,12 +164,12 @@ export default function SecurityPage() {
             <h2 className="text-xl font-extrabold text-[var(--catto-slate-900)] mb-6 text-center">What We Don&apos;t Do</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
-                "We don't upload your files anywhere",
+                "We don't send your files to any server",
                 "We don't use cookies or tracking scripts",
-                "We don't store your data on any server",
-                "We don't require an account to use the app",
-                "We don't send analytics or telemetry",
-                "We don't persist your API key to storage",
+                "We don't require an account or login",
+                "We don't collect analytics or telemetry",
+                "We don't store data in any database",
+                "We don't save anything after you close the tab",
               ].map((item) => (
                 <div key={item} className="flex items-start gap-2">
                   <span className="text-[var(--catto-red-500)] font-bold mt-0.5 shrink-0">&times;</span>
@@ -319,7 +319,7 @@ export default function SecurityPage() {
         <div className="max-w-6xl mx-auto px-6 space-y-2">
           <div className="flex items-center justify-center gap-2 text-sm text-[var(--catto-slate-400)]">
             <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-            All data processed locally — close this page and everything is gone
+            All data processed locally — close the tab and everything is gone
           </div>
           <div className="flex items-center justify-center gap-4 text-xs text-[var(--catto-slate-400)]">
             <Link href="/disclaimer" className="hover:text-[var(--catto-slate-600)]">Disclaimer</Link>

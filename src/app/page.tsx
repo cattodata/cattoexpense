@@ -148,7 +148,7 @@ function HomeInner() {
             <span className="text-[var(--catto-primary)]">without giving up your privacy</span> 🐱
           </h1>
           <p className="text-lg text-[var(--catto-slate-500)] max-w-2xl mx-auto leading-relaxed">
-            Upload your bank statement. Get instant insights. No account, no upload, no data stored — everything stays on your device. 🔒✨
+            Upload your bank statement. Get instant insights. No account, no server, no data stored — everything runs in your browser. 🔒✨
           </p>
         </section>
 
@@ -179,8 +179,8 @@ function HomeInner() {
             {[
               {
                 icon: LockKeyhole,
-                title: "No Upload",
-                desc: "Your file is read locally using the browser's FileReader API — it never leaves your device.",
+                title: "No Server",
+                desc: "Your file is read locally in the browser — it never leaves your device. There is no backend.",
               },
               {
                 icon: Eye,
@@ -190,7 +190,7 @@ function HomeInner() {
               {
                 icon: Trash2,
                 title: "No Storage",
-                desc: "Close the page and all data is gone. Nothing is saved anywhere — ever.",
+                desc: "Close the tab and all data is gone. Nothing is saved anywhere.",
               },
             ].map((f) => (
               <div key={f.title} className="catto-card flex flex-col items-center gap-4 p-6">
@@ -230,7 +230,7 @@ function HomeInner() {
                 { icon: FileText, step: "1", title: "You pick a file", desc: "PDF / CSV / TXT — read by FileReader API" },
                 { icon: Cpu, step: "2", title: "Parsed in-browser", desc: "JavaScript extracts transactions locally" },
                 { icon: HardDrive, step: "3", title: "Analyzed on-device", desc: "Categories, charts, insights — zero network" },
-                { icon: Trash2, step: "4", title: "Gone when you close", desc: "Close the tab and data vanishes forever" },
+                { icon: Trash2, step: "4", title: "Gone when you close", desc: "Close the tab and all data vanishes" },
               ].map((s) => (
                 <div key={s.step} className="relative text-center p-3 sm:p-4 rounded-xl border border-[var(--catto-slate-200)] bg-[var(--catto-primary-light)]">
                   <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white mx-auto mb-2 bg-[var(--catto-primary-hover)]">
@@ -251,12 +251,12 @@ function HomeInner() {
           <div className="bg-[var(--catto-slate-50)] rounded-xl border border-[var(--catto-slate-200)] px-5 py-4">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2">
               {[
-                "Upload files to any server",
+                "Send your files to any server",
                 "Use cookies or tracking scripts",
-                "Require an account",
+                "Require an account or login",
                 "Collect analytics or telemetry",
                 "Store data in any database",
-                "Persist API keys to disk",
+                "Save anything after you close the tab",
               ].map((item) => (
                 <div key={item} className="flex items-center gap-1.5">
                   <span className="text-[var(--catto-primary-hover)] font-bold text-xs shrink-0">—</span>
@@ -295,7 +295,7 @@ function HomeInner() {
         <div className="max-w-6xl mx-auto px-6 space-y-2">
           <div className="flex items-center justify-center gap-2 text-sm text-[var(--catto-slate-400)]">
             <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-            All data processed locally — close this page and everything is gone
+            All data processed locally — close the tab and everything is gone
           </div>
           <div className="flex items-center justify-center gap-4 text-xs text-[var(--catto-slate-400)]">
             <Link href="/disclaimer" className="hover:text-[var(--catto-slate-600)]">Disclaimer</Link>
