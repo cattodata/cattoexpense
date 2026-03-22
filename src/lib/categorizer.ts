@@ -245,6 +245,73 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /jcmi\s?investment/i,
     /hmt\s?pty/i,
     /tangerpay/i,
+    // — AU food chains —
+    /guzman\s?y?\s?gomez/i,
+    /red\s?rooster/i,
+    /\boporto\b/i,
+    /grill['']?d/i,
+    /\bzambrero\b/i,
+    /\bschnitz\b/i,
+    /betty'?s?\s?burger/i,
+    /\brashays\b/i,
+    /mad\s?mex/i,
+    /oliver\s?brown/i,
+    /sumo\s?salad/i,
+    /noodle\s?box/i,
+    /pie\s?face/i,
+    /lord\s?of\s?the\s?fries/i,
+    /\bogalo\b/i,
+    /chargrill\s?charlie/i,
+    /chicken\s?treat/i,
+    /sushi\s?hub/i,
+    /zeus\s?(?:street|greek)/i,
+    /ribs?\s?(?:&|and)\s?burger/i,
+    /\bfishbowl\b/i,
+    /gloria\s?jean/i,
+    /coffee\s?club/i,
+    /jamaica\s?blue/i,
+    /hudson'?s?\s?coffee/i,
+    /zarraff?a/i,
+    /michel'?s?\s?patiss/i,
+    /pancake\s?parlour/i,
+    /bucking\s?bull/i,
+    /jimmy\s?grant/i,
+    /muffin\s?break/i,
+    /baker'?s?\s?delight/i,
+    /brumb(?:y'?s?|ies)/i,
+    /donut\s?king/i,
+    /baskin\s?robbins/i,
+    /\bsizzler\b/i,
+    // — TH food chains —
+    /\bmk\s?(?:restaurant|suki|rest)\b/i,
+    /bar[\s-]?b[\s-]?q\s?plaza/i,
+    /\bfuji\s?rest/i,
+    /\bshabushi\b/i,
+    /bon\s?chon/i,
+    /after\s?you\b/i,
+    /snp\s?food/i,
+    /pizza\s?company/i,
+    /\bswensen/i,
+    /dairy\s?queen/i,
+    /\boishi\b/i,
+    /coco\s?ichiban/i,
+    /\byoshinoya\b/i,
+    /greyhound\s?cafe/i,
+    /black\s?canyon/i,
+    /mos\s?burger/i,
+    /cafe\s?amazon/i,
+    /\binthanin\b/i,
+    /\bwawee\b/i,
+    /\bpunthai\b/i,
+    /chao\s?doi/i,
+    /tom\s?n\s?toms?/i,
+    // — Food delivery (TH) —
+    /grab\s?\*?\s?food|grabfood/i,
+    /foodpanda|food\s?panda/i,
+    /line\s?man\b|lineman/i,
+    // — Generic food keywords —
+    /\bbakery\b/i,
+    /\bfrozen\s?yogh?urt/i,
   ],
   "Groceries": [
     /grocery|supermarket|walmart|costco|trader|whole\s?foods|aldi|lidl|kroger|safeway|publix|big\s?c|tesco|makro|tops|7-?eleven|\bmarket\b|minimart|fresh/i,
@@ -269,6 +336,24 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /chatswood\s?seafood|atlantic\s?seafood/i,
     /miracle\s?chatswood/i,
     /\bssiyu\b|\bcu\b.*convenience/i,
+    // — AU grocery chains —
+    /foodworks/i,
+    /drakes\s?s?(?:uper)?market|(?:^|\s)drakes(?:\s|$)/i,
+    /spudshed/i,
+    /iga\s?x-?press/i,
+    /farmer\s?jacks?/i,
+    // — TH grocery / convenience —
+    /\bcp\s?all\b|cpall/i,
+    /family\s?mart/i,
+    /lawson\s?108/i,
+    /mini\s?big\s?c/i,
+    /cj\s?(?:express|more)/i,
+    /\blotus(?:'?s)?\b|ek[\s-]?chai/i,
+    /gourmet\s?market/i,
+    /villa\s?market/i,
+    /max\s?valu/i,
+    /cp\s?fresh/i,
+    /central\s?food\s?hall/i,
   ],
   "Transport": [
     /uber(?!\s*\*?\s*eats)|lyft|grab(?!\s?food)|taxi|fuel|gas\s?station|petrol|shell|chevron|bp\b|parking|toll|transit|metro|bus\b|train\b|railway|airport|car\s?wash|auto\s?repair|mechanic|tire/i,
@@ -279,6 +364,30 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /\blime\b/i,
     /\bbeam\b/i,
     /\bcab\b/i,
+    // — AU fuel / tolls / parking —
+    /\bampol\b/i,
+    /\bcaltex\b/i,
+    /united\s?petrol/i,
+    /puma\s?energy/i,
+    /metro\s?petrol/i,
+    /\blinkt\b|roam\s?express|go\s?via|\btransurban\b/i,
+    /e-?toll/i,
+    /wilson\s?park/i,
+    /secure\s?park/i,
+    /care\s?park/i,
+    /\bgoget\b/i,
+    /supercheap\s?auto/i,
+    /\brepco\b/i,
+    /\bautobarn\b/i,
+    /\bservo\b/i,
+    // — TH transport —
+    /\bbts\b|\brabbit\s?card/i,
+    /\bmrt\b|\bbem\b/i,
+    /bolt\.eu/i,
+    /\bexat\b|easy\s?pass|m[\s-]?pass/i,
+    /\bptt\s?(?:station|or)\b/i,
+    /\bbangchak\b/i,
+    /\bindrive\b/i,
   ],
   "Shopping": [
     /amazon(?!.*prime)|ebay|shopee|lazada|etsy|mall|shop(?:ping)?|store|retail|fashion|cloth|apparel|shoe|nike|adidas|zara|h&m|uniqlo|ikea|home\s?depot|lowes|best\s?buy|apple\s?store|electronics/i,
@@ -357,6 +466,53 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /\boculus\b/i,
     /\bnintendo\b/i,
     /\bblu\.\s?\d/i,
+    // — AU shopping —
+    /\bbunnings\b/i,
+    /harvey\s?norman/i,
+    /fantastic\s?furn/i,
+    /\bamart\b/i,
+    /freedom\s?furn/i,
+    /nick\s?scali/i,
+    /beacon\s?light/i,
+    /good\s?guys/i,
+    /\bbcf\b/i,
+    /\bspotlight\b/i,
+    /\badairs\b/i,
+    /bed\s?bath\s?n?\s?table/i,
+    /\bsephora\b/i,
+    /\bdecathlon\b/i,
+    /dan\s?murphy/i,
+    /\bbws\b/i,
+    /liquorland/i,
+    /first\s?choice\s?liquor/i,
+    /vintage\s?cellar/i,
+    /jimmy\s?brings/i,
+    /\bhardware\b/i,
+    /\bflorist\b/i,
+    // — TH shopping —
+    /\bcentral\s?(?:dept|world|plaza)\b/i,
+    /\brobinson\b/i,
+    /\bsiam\s?paragon/i,
+    /\bemporium\b|\bemquartier\b/i,
+    /terminal\s?21/i,
+    /iconsiam|icon\s?siam/i,
+    /\bmbk\s?(?:center)?\b/i,
+    /home\s?pro\b|homepro/i,
+    /thai\s?watsadu|thaiwatsadu/i,
+    /do\s?home\b|dohome/i,
+    /global\s?house/i,
+    /boonthavorn/i,
+    /power\s?buy|powerbuy/i,
+    /banana\s?it|\bbnn\b/i,
+    /studio\s?7\b/i,
+    /it\s?city\b/i,
+    /jay\s?mart/i,
+    /super\s?sports/i,
+    /\bb2s\b/i,
+    /office\s?mate/i,
+    /\bwatsons?\b/i,
+    /\bboots\b/i,
+    /jd\s?central/i,
   ],
   "Bills & Utilities": [
     /electric|water\s?bill|gas\s?bill|internet|wifi|broadband|phone\s?bill|mobile\s?plan|cable|utilit(?:y|ies)|garbage|sewage|municipal|city\s?of|power|energy/i,
@@ -376,6 +532,36 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /\bsweep\b/i,
     /shopback/i,
     /origin\s?energy/i,
+    // — AU utilities / telco —
+    /\bagl\b/i,
+    /energy\s?australia/i,
+    /alinta/i,
+    /red\s?energy/i,
+    /lumo\s?energy/i,
+    /simply\s?energy|\bengie\b/i,
+    /powershop/i,
+    /actew/i,
+    /\bergon\b/i,
+    /ausgrid/i,
+    /aussie\s?broadband|aussie\s?bb/i,
+    /\bbelong\b/i,
+    /amaysim/i,
+    /boost\s?mobile/i,
+    /\blebara\b/i,
+    /\bfoxtel\b/i,
+    /fetch\s?tv/i,
+    // — TH utilities / telco —
+    /metropolitan\s?electric|\bgfn\b/i,
+    /provincial\s?electric|\bgfp\b/i,
+    /metropolitan\s?waterworks/i,
+    /provincial\s?waterworks/i,
+    /\bais\b|advanced\s?info/i,
+    /true\s?(?:move|corp|online)/i,
+    /\bdtac\b/i,
+    /\b3bb\b|three\s?bb/i,
+    /national\s?telecom|\btot\b|\bcat\s?telecom/i,
+    /counter\s?service/i,
+    /true\s?money/i,
   ],
   "Subscriptions": [
     /netflix|spotify|youtube|disney|hbo|hulu|apple\s?music|amazon\s?prime|subscri?(?:ption|b)/i,
@@ -401,6 +587,19 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /2c2p/i,
     /dg\*?rom/i,
     /skneteuueokseu/i,
+    // — AU gym / fitness —
+    /anytime\s?fitness/i,
+    /\bf45\b/i,
+    /\bjetts\b/i,
+    /fitness\s?first/i,
+    /plus\s?fitness/i,
+    /goodlife/i,
+    // — TH subscriptions —
+    /true\s?id/i,
+    /ais\s?play/i,
+    /\bviu\b/i,
+    /\bwetv\b/i,
+    /\bmeb\b/i,
   ],
   "Housing": [
     /rent\b|mortgage|lease|property|condo|apartment|housing|hoa\b|home\s?insurance|real\s?estate/i,
@@ -430,6 +629,27 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /mr\s?vitamins/i,
     /arctic\s?white/i,
     /alpha\s?beta\s?australia/i,
+    // — AU health —
+    /blooms?\s?(?:chemist|pharm)/i,
+    /discount\s?drug/i,
+    /national\s?pharmac/i,
+    /specsavers/i,
+    /\bopsm\b/i,
+    /\bphysio\b/i,
+    /\bpathology\b/i,
+    /\bchiro\b/i,
+    /\bosteo\b/i,
+    /\bpsych\b/i,
+    // — TH hospitals —
+    /bumrungrad/i,
+    /samitivej/i,
+    /bangkok\s?hospital|\bbdms\b/i,
+    /\bbnh\s?(?:hospital)?\b/i,
+    /phyathai|piyavate/i,
+    /saint\s?louis|st\s?louis/i,
+    /\bpaolo\b/i,
+    /thonburi\s?(?:hospital)?/i,
+    /ramkhamhaeng|ram\s?hospital/i,
   ],
   "Entertainment": [
     /movie|cinema|theater|concert|ticket|game|gaming|steam|playstation|xbox|amusement|park\b|zoo|museum|bowling|karaoke/i,
@@ -460,10 +680,16 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /top\s?serve\s?tennis/i,
     /ezi\*?lane\s?cove\s?golf/i,
     /puffing\s?billy/i,
+    // — TH entertainment —
+    /major\s?(?:cineplex|cinema)/i,
+    /sf\s?(?:cinema|cine)/i,
   ],
   "Education": [
     /school|university|college|tuition|course|class\b|coursera|\bbooks?\b|textbook|education|learning|training|certification|exam/i,
     /rosetta\s?stone/i,
+    // — AU education —
+    /\btafe\b/i,
+    /goodstart/i,
   ],
   "Transfer": [
     /transfer|zelle|venmo|paypal|wire|remittance|sent\s?to|received\s?from|p2p/i,
@@ -473,6 +699,12 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /autopay/i,
     /osko|payid|pay\s?id/i,
     /\bwise\b.*sydney|wise\s?(?:au|sydney)/i,
+    // — BNPL repayments —
+    /afterpay/i,
+    /zip\s?(?:pay|money)/i,
+    /\bhumm\b|shophumm/i,
+    /latitude\s?pay/i,
+    /\bklarna\b/i,
   ],
   "Income": [
     /salary|payroll|deposit|wage|bonus|dividend|interest\s?earned|refund|reimbursement|cashback|cash\s?back|reward/i,
@@ -484,14 +716,46 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /\bbupa\b/i,
     /medibank/i,
     /\bnib\b/i,
+    // — AU insurance —
+    /\bnrma\b/i,
+    /\baami\b/i,
+    /\bsuncorp\b/i,
+    /\bracv\b/i,
+    /\bracq\b/i,
+    /\bqbe\b/i,
+    /\bgio\b/i,
+    /\bcgu\b/i,
+    /\byoui\b/i,
+    /budget\s?direct/i,
+    /\bhcf\b/i,
+    /\bahm\b/i,
+    /aust(?:ralian)?\s?unity/i,
+    // — TH insurance —
+    /muang\s?thai/i,
+    /bangkok\s?insurance|\bbki\b/i,
+    /viriyah/i,
+    /thai\s?life|\btli\b/i,
+    /\baia\b/i,
+    /\bfwd\b/i,
+    /\bprudential\b/i,
+    /allianz\s?ayudhya/i,
+    /tokio\s?marine/i,
+    /krungthai[\s-]?axa|\bktaxa\b/i,
   ],
   "Personal Care": [
     /salon|barber|beauty|cosmetic|skincare|nail\b|hair\b/i,
     /fancy\s?life/i,
     /l'?oreal/i,
+    /just\s?cuts/i,
   ],
   "Pets": [
     /pet(?:s)?\b|vet\b|veterinary|animal|dog\b|cat\b|petco|petsmart/i,
+    /pet\s?barn/i,
+    /pet\s?stock/i,
+    /city\s?farmer/i,
+    /best\s?friends?\s?pet/i,
+    /greencross/i,
+    /\brspca\b/i,
   ],
   "Charity": [
     /unicef/i,
@@ -502,6 +766,15 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /\btrustees?\b/i,
     /chatswood\s?parish/i,
     /st\s?paul(?:s|'s)?\s?cathedral/i,
+    // — AU charities —
+    /world\s?vision/i,
+    /salvation\s?army|\bsalvo/i,
+    /red\s?cross/i,
+    /smith\s?family/i,
+    /\boxfam\b/i,
+    /beyond\s?blue/i,
+    /fred\s?hollows/i,
+    /cancer\s?council/i,
   ],
 };
 
@@ -572,6 +845,46 @@ export function categorizeTransaction(description: string, amount?: number): str
   if (/teds?\s?camera/i.test(cleaned)) {
     return "Shopping";
   }
+
+  // ── AU/TH conflict pre-checks ──
+  // These merchants contain generic keywords (thai, metro, gourmet, health,
+  // vision, store, shop) that would be caught by earlier broad patterns.
+  if (/thaiwatsadu|thai\s?watsadu/i.test(cleaned)) return "Shopping";
+  if (/gourmet\s?market/i.test(cleaned)) return "Groceries";
+  if (/villa\s?market/i.test(cleaned)) return "Groceries";
+  if (/central\s?food\s?hall/i.test(cleaned)) return "Groceries";
+  if (/metropolitan\s?electric/i.test(cleaned)) return "Bills & Utilities";
+  if (/provincial\s?electric/i.test(cleaned)) return "Bills & Utilities";
+  if (/metropolitan\s?waterworks/i.test(cleaned)) return "Bills & Utilities";
+  if (/provincial\s?waterworks/i.test(cleaned)) return "Bills & Utilities";
+  if (/phyathai|piyavate/i.test(cleaned)) return "Health";
+  if (/bumrungrad|samitivej|bangkok\s?hospital|\bbdms\b/i.test(cleaned)) return "Health";
+  if (/ramkhamhaeng|ram\s?hospital/i.test(cleaned)) return "Health";
+  if (/muang\s?thai/i.test(cleaned)) return "Insurance";
+  if (/bangkok\s?insurance|\bbki\b/i.test(cleaned)) return "Insurance";
+  if (/thai\s?life|\btli\b/i.test(cleaned)) return "Insurance";
+  if (/\bhcf\b/i.test(cleaned)) return "Insurance";
+  if (/\baia\b/i.test(cleaned)) return "Insurance";
+  if (/\bfwd\b/i.test(cleaned)) return "Insurance";
+  if (/\bnrma\b|\baami\b|\bsuncorp\b/i.test(cleaned)) return "Insurance";
+  if (/\bracv\b|\bracq\b|\bqbe\b/i.test(cleaned)) return "Insurance";
+  if (/\byoui\b|budget\s?direct/i.test(cleaned)) return "Insurance";
+  if (/\bahm\b|aust(?:ralian)?\s?unity/i.test(cleaned)) return "Insurance";
+  if (/viriyah/i.test(cleaned)) return "Insurance";
+  if (/prudential/i.test(cleaned)) return "Insurance";
+  if (/tokio\s?marine/i.test(cleaned)) return "Insurance";
+  if (/krungthai[\s-]?axa|\bktaxa\b/i.test(cleaned)) return "Insurance";
+  if (/discount\s?drug/i.test(cleaned)) return "Health";
+  if (/national\s?pharmac/i.test(cleaned)) return "Health";
+  if (/world\s?vision/i.test(cleaned)) return "Charity";
+  if (/red\s?cross/i.test(cleaned)) return "Charity";
+  if (/smith\s?family/i.test(cleaned)) return "Charity";
+  if (/beyond\s?blue/i.test(cleaned)) return "Charity";
+  if (/cancer\s?council/i.test(cleaned)) return "Charity";
+  if (/fred\s?hollows/i.test(cleaned)) return "Charity";
+  if (/salvation\s?army|\bsalvo/i.test(cleaned)) return "Charity";
+  if (/shophumm|\bhumm\b/i.test(cleaned)) return "Transfer";
+  if (/afterpay/i.test(cleaned)) return "Transfer";
 
   // ── Transfer intent decoder ──
   // Bank transfers ("Transfer To [PAYEE]... [MEMO]") carry intent in the memo.

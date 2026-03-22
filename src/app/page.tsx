@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { ShieldCheck, LockKeyhole, Eye, Trash2, LogOut, User as UserIcon, AlertTriangle, Globe } from "lucide-react";
+import { ShieldCheck, LogOut, User as UserIcon, AlertTriangle, Globe, FileText, Cpu, HardDrive, Trash2, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import FileUpload from "@/components/FileUpload";
 import Dashboard from "@/components/Dashboard";
@@ -258,42 +258,69 @@ function HomeInner() {
           </section>
         )}
 
-        {/* Features — 3 simple cards like original */}
+        {/* How Your Data Flows — visual trust strip */}
         <section className="pb-10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-            {[
-              {
-                icon: LockKeyhole,
-                title: "No Upload 🔒",
-                desc: "Your file is read locally using the browser's FileReader API — it never leaves your device.",
-              },
-              {
-                icon: Eye,
-                title: "No Tracking 👀",
-                desc: "No cookies, no analytics, no account needed. We don't know who you are.",
-              },
-              {
-                icon: Trash2,
-                title: "Your Browser Only 🗑️",
-                desc: "Data stays in your browser only. Nothing is sent to any server. Clear anytime.",
-              },
-            ].map((f) => (
-              <div key={f.title} className="flex flex-col items-center gap-4 p-6">
-                <div className="w-14 h-14 rounded-full bg-[var(--catto-primary-light)] flex items-center justify-center">
-                  <f.icon className="w-6 h-6 text-[var(--catto-primary)]" />
+          <h2 className="text-center text-xl sm:text-2xl font-extrabold text-[var(--catto-slate-900)] mb-2">
+            How your data flows
+          </h2>
+          <p className="text-center text-sm text-[var(--catto-slate-400)] mb-8">
+            Everything happens inside your browser. Nothing crosses the line.
+          </p>
+
+          <div className="relative rounded-2xl border-2 border-dashed border-[var(--catto-green-500)] bg-white p-5 sm:p-6">
+            {/* Badge */}
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--catto-green-600)] text-white text-[11px] font-bold px-3.5 py-0.5 rounded-full whitespace-nowrap">
+              Your Browser — Offline
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mt-1">
+              {[
+                { icon: FileText, step: "1", title: "You pick a file", desc: "PDF / CSV / XLSX — read by FileReader API", color: "var(--catto-blue-500)", bg: "var(--catto-blue-50)" },
+                { icon: Cpu, step: "2", title: "Parsed in-browser", desc: "JavaScript extracts transactions locally", color: "var(--catto-primary-hover)", bg: "var(--catto-primary-light)" },
+                { icon: HardDrive, step: "3", title: "Analyzed on-device", desc: "Categories, charts, insights — zero network", color: "var(--catto-green-600)", bg: "var(--catto-green-50)" },
+                { icon: Trash2, step: "4", title: "Gone when you close", desc: "Close the tab and data vanishes forever", color: "var(--catto-orange-600)", bg: "var(--catto-orange-50)" },
+              ].map((s) => (
+                <div key={s.step} className="relative text-center p-3 sm:p-4 rounded-xl border" style={{ borderColor: s.color, background: s.bg }}>
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white mx-auto mb-2" style={{ background: s.color }}>
+                    {s.step}
+                  </div>
+                  <s.icon className="w-5 h-5 mx-auto mb-1.5" style={{ color: s.color }} />
+                  <div className="text-xs sm:text-sm font-bold text-[var(--catto-slate-900)] mb-0.5">{s.title}</div>
+                  <div className="text-[10px] sm:text-xs text-[var(--catto-slate-500)] leading-snug">{s.desc}</div>
                 </div>
-                <h3 className="text-lg font-bold text-[var(--catto-slate-900)]">{f.title}</h3>
-                <p className="text-sm text-[var(--catto-slate-500)] leading-relaxed">{f.desc}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* Learn More Links */}
+        {/* What We Don't Do — compact strip */}
+        <section className="pb-10">
+          <div className="bg-[var(--catto-slate-50)] rounded-xl border border-[var(--catto-slate-200)] px-5 py-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2">
+              {[
+                "No file uploads to any server",
+                "No cookies or tracking scripts",
+                "No account required",
+                "No analytics or telemetry",
+                "No database — we can't store it",
+                "No API key persisted to disk",
+              ].map((item) => (
+                <div key={item} className="flex items-center gap-1.5">
+                  <span className="text-[var(--catto-red-500)] font-bold text-xs shrink-0">&times;</span>
+                  <span className="text-xs text-[var(--catto-slate-600)]">{item}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTAs */}
         <section className="pb-20">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link href="/security" className="catto-btn-secondary py-3 px-6 justify-center">
-              <ShieldCheck className="w-4 h-4 text-[var(--catto-green-600)]" /> How We Keep Your Data Safe
+            <Link href="/security" className="group catto-btn-secondary py-3 px-6 justify-center">
+              <ShieldCheck className="w-4 h-4 text-[var(--catto-green-600)]" />
+              Full security architecture
+              <ArrowRight className="w-3.5 h-3.5 text-[var(--catto-slate-400)] group-hover:translate-x-0.5 transition-transform" />
             </Link>
             <Link href="/supported" className="catto-btn-secondary py-3 px-6 justify-center">
               <Globe className="w-4 h-4 text-[var(--catto-blue-500)]" /> Supported Banks & Formats
