@@ -1,23 +1,28 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { ShieldCheck, LogOut, User as UserIcon, AlertTriangle, Globe, FileText, Cpu, HardDrive, Trash2, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import dynamic from "next/dynamic";
+import { ShieldCheck, Globe, FileText, Cpu, HardDrive, Trash2, ArrowRight, LockKeyhole, Eye } from "lucide-react";
 import Link from "next/link";
 import FileUpload from "@/components/FileUpload";
-import Dashboard from "@/components/Dashboard";
-import AuthScreen from "@/components/AuthScreen";
-import HistoryPanel from "@/components/HistoryPanel";
-import FocusTrapDialog from "@/components/FocusTrapDialog";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { ToastProvider, useToast } from "@/components/Toast";
-import type { RawTransaction, AnalysisResult, MonthlyResult } from "@/lib/types";
-import { analyzeMultiMonth } from "@/lib/analyzer";
-import { getCurrentUser, logout, wipeAllData } from "@/lib/auth";
-import type { User } from "@/lib/auth";
-import { saveAnalysis, getUserHistory } from "@/lib/history";
-import type { AnalysisRecord } from "@/lib/history";
 
-const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+const Dashboard = dynamic(() => import("@/components/Dashboard"), { ssr: false });
+import type { RawTransaction, AnalysisResult, MonthlyResult } from "@/lib/types";
+import { analyzeMultiMonth, buildMonthlyResults } from "@/lib/analyzer";
+
+// ── Auth & History disabled for security (stateless mode) ──
+// To re-enable, uncomment the imports below and restore the auth/history
+// blocks marked with "AUTH_DISABLED" and "HISTORY_DISABLED" in this file.
+//
+// import { getCurrentUser, logout, wipeAllData } from "@/lib/auth";
+// import type { User } from "@/lib/auth";
+// import { saveAnalysis, getUserHistory } from "@/lib/history";
+// import type { AnalysisRecord } from "@/lib/history";
+// import HistoryPanel from "@/components/HistoryPanel";
+// import FocusTrapDialog from "@/components/FocusTrapDialog";
+// const AuthScreen = dynamic(() => import("@/components/AuthScreen"), { ssr: false });
 
 export default function Home() {
   return (
@@ -31,56 +36,33 @@ function HomeInner() {
   const { toast } = useToast();
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [rawTransactions, setRawTransactions] = useState<RawTransaction[]>([]);
-  const [user, setUser] = useState<User | null>(null);
-  const [showAuth, setShowAuth] = useState(false);
-  const [history, setHistory] = useState<AnalysisRecord[]>([]);
   const [fileName, setFileName] = useState("statement");
   const [monthlyResults, setMonthlyResults] = useState<MonthlyResult[]>([]);
-  const [aiCategories, setAiCategories] = useState<Record<number, string> | undefined>(undefined);
-  const [showWipeConfirm, setShowWipeConfirm] = useState(false);
 
-  // Restore session from localStorage after mount (avoids hydration mismatch)
-  useEffect(() => {
-    setUser(getCurrentUser());
-  }, []);
+  // AUTH_DISABLED: login/session state
+  // const [user, setUser] = useState<User | null>(null);
+  // const [showAuth, setShowAuth] = useState(false);
+  // const [showWipeConfirm, setShowWipeConfirm] = useState(false);
 
-  // Load history on mount / user change (async)
-  useEffect(() => {
-    if (user) {
-      getUserHistory(user.id).then(setHistory);
-    } else {
-      setHistory([]);
-    }
-  }, [user]);
+  // HISTORY_DISABLED: saved analysis history
+  // const [history, setHistory] = useState<AnalysisRecord[]>([]);
 
-  // Auto-lock on inactivity (15 min)
-  useEffect(() => {
-    if (!user) return;
-    let timer: ReturnType<typeof setTimeout>;
-    const resetTimer = () => {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        logout();
-        setUser(null);
-        setHistory([]);
-        setResult(null);
-        toast("Session locked due to inactivity", "info");
-      }, INACTIVITY_TIMEOUT_MS);
-    };
-    const events = ["mousedown", "keydown", "scroll", "touchstart"] as const;
-    events.forEach((e) => window.addEventListener(e, resetTimer));
-    resetTimer();
-    return () => {
-      clearTimeout(timer);
-      events.forEach((e) => window.removeEventListener(e, resetTimer));
-    };
-  }, [user, toast]);
+  // AUTH_DISABLED: restore session on mount
+  // useEffect(() => { setUser(getCurrentUser()); }, []);
 
-  const refreshHistory = useCallback(async () => {
-    if (user) {
-      setHistory(await getUserHistory(user.id));
-    }
-  }, [user]);
+  // HISTORY_DISABLED: load history on mount / user change
+  // useEffect(() => {
+  //   if (user) { getUserHistory(user.id).then(setHistory); }
+  //   else { setHistory([]); }
+  // }, [user]);
+
+  // AUTH_DISABLED: auto-lock on inactivity (15 min)
+  // useEffect(() => { ... }, [user, toast]);
+
+  // HISTORY_DISABLED: refresh history helper
+  // const refreshHistory = useCallback(async () => {
+  //   if (user) { setHistory(await getUserHistory(user.id)); }
+  // }, [user]);
 
   const handleParsed = async (transactions: RawTransaction[], uploadedFileName?: string) => {
     setRawTransactions(transactions);
@@ -91,69 +73,31 @@ function HomeInner() {
     toast(`Analyzed ${transactions.length} transactions`, "success");
     window.scrollTo({ top: 0, behavior: "smooth" });
 
-    // Auto-save if logged in
-    if (user) {
-      await saveAnalysis(user.id, uploadedFileName || "statement", multi.overall);
-      await refreshHistory();
-    }
+    // HISTORY_DISABLED: auto-save if logged in
+    // if (user) {
+    //   await saveAnalysis(user.id, uploadedFileName || "statement", multi.overall);
+    //   await refreshHistory();
+    // }
   };
 
   const handleReset = () => {
     setResult(null);
     setRawTransactions([]);
     setMonthlyResults([]);
-    setAiCategories(undefined);
   };
 
-  const handleAuth = async (loggedInUser: User) => {
-    setUser(loggedInUser);
-    setShowAuth(false);
-    setHistory(await getUserHistory(loggedInUser.id));
-    toast(`Welcome, ${loggedInUser.displayName}!`, "success");
-    if (loggedInUser.passwordWarning) {
-      setTimeout(() => toast(loggedInUser.passwordWarning!, "error"), 500);
-    }
-  };
+  // AUTH_DISABLED: auth handlers
+  // const handleAuth = async (loggedInUser: User) => { ... };
+  // const handleLogout = () => { ... };
+  // const handleWipeAll = async () => { ... };
 
-  const handleLogout = () => {
-    logout();
-    setUser(null);
-    setHistory([]);
-  };
+  // HISTORY_DISABLED: view history handler
+  // const handleViewHistory = (record: AnalysisRecord) => { ... };
 
-  const handleWipeAll = async () => {
-    await wipeAllData();
-    setUser(null);
-    setHistory([]);
-    setResult(null);
-    setShowWipeConfirm(false);
-    toast("All data wiped from this browser", "success");
-  };
-
-  const handleViewHistory = (record: AnalysisRecord) => {
-    setResult(record.result);
-    const restoredRaw = record.result.transactions.map((t) => ({
-      date: t.date,
-      amount: t.amount,
-      description: t.description,
-      source: t.source,
-      isRefund: t.category === "Refund" ? true : undefined,
-    }));
-    setRawTransactions(restoredRaw);
-    const multi = analyzeMultiMonth(restoredRaw);
-    setMonthlyResults(multi.months);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  // Show auth screen
-  if (showAuth && !user) {
-    return (
-      <AuthScreen
-        onAuth={handleAuth}
-        onSkip={() => setShowAuth(false)}
-      />
-    );
-  }
+  // AUTH_DISABLED: show auth screen
+  // if (showAuth && !user) {
+  //   return <AuthScreen onAuth={handleAuth} onSkip={() => setShowAuth(false)} />;
+  // }
 
   if (result) {
     return (
@@ -162,16 +106,14 @@ function HomeInner() {
           result={result}
           rawTransactions={rawTransactions}
           monthlyResults={monthlyResults}
-          onResultUpdate={async (updated, newAiCategories) => {
+          onResultUpdate={async (updated) => {
             setResult(updated);
-            if (newAiCategories) setAiCategories(newAiCategories);
-            const cats = newAiCategories || aiCategories;
-            const multi = analyzeMultiMonth(rawTransactions, cats);
-            setMonthlyResults(multi.months);
-            if (user) {
-              await saveAnalysis(user.id, fileName, updated);
-              await refreshHistory();
-            }
+            setMonthlyResults(buildMonthlyResults(updated.transactions));
+            // HISTORY_DISABLED: auto-save on update
+            // if (user) {
+            //   await saveAnalysis(user.id, fileName, updated);
+            //   await refreshHistory();
+            // }
           }}
           onReset={handleReset}
         />
@@ -181,7 +123,7 @@ function HomeInner() {
 
   return (
     <div className="min-h-screen bg-[var(--background)] font-[family-name:var(--font-jakarta)]">
-      {/* Top Bar — same as dashboard */}
+      {/* Top Bar */}
       <header className="sticky top-0 z-50 border-b border-[var(--catto-primary-20)] bg-white/80 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-3 sm:px-6 flex h-14 items-center justify-between">
           <div className="flex items-center gap-3">
@@ -190,48 +132,16 @@ function HomeInner() {
             </div>
             <span className="text-lg font-extrabold tracking-tight text-[var(--catto-slate-900)]">CattoExpense</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-[var(--catto-green-600)]">
-              <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-              <span className="text-sm font-bold hidden sm:inline">100% Local Processing</span>
-            </div>
-            {user ? (
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-[var(--catto-slate-700)] hidden sm:inline">
-                  <UserIcon className="w-3.5 h-3.5 inline mr-1" />
-                  {user.displayName}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-[var(--catto-slate-100)] text-[var(--catto-slate-400)] hover:text-[var(--catto-red-500)] transition-colors cursor-pointer"
-                  title="Sign out"
-                  aria-label="Sign out"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setShowWipeConfirm(true)}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-[var(--catto-red-50)] text-[var(--catto-slate-400)] hover:text-[var(--catto-red-500)] transition-colors cursor-pointer"
-                  title="Wipe all data"
-                  aria-label="Wipe all data"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowAuth(true)}
-                className="catto-btn-primary text-xs py-1.5 px-3"
-              >
-                <UserIcon className="w-3.5 h-3.5" /> Sign In
-              </button>
-            )}
+          <div className="flex items-center gap-2 text-[var(--catto-green-600)]">
+            <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+            <span className="text-sm font-bold hidden sm:inline">100% Local Processing</span>
           </div>
+          {/* AUTH_DISABLED: login/logout/wipe buttons were here */}
         </div>
       </header>
 
       <main id="main-content" className="max-w-4xl mx-auto px-6">
-        {/* Hero — clean & simple like original */}
+        {/* Hero */}
         <section className="text-center py-16 md:py-24">
           <h1 className="catto-heading text-2xl sm:text-4xl md:text-6xl mb-4">
             Analyze your spending{" "}
@@ -244,21 +154,64 @@ function HomeInner() {
 
         {/* Upload Zone */}
         <section className="pb-8">
-          <FileUpload onParsed={handleParsed} />
+          <FileUpload
+            onParsed={handleParsed}
+            onImportResult={(imported, importedFileName) => {
+              setResult(imported);
+              setRawTransactions(imported.transactions.map((t) => ({
+                date: t.date,
+                amount: t.amount,
+                description: t.description,
+                source: t.source,
+                isRefund: t.category === "Refund" ? true : undefined,
+              })));
+              setMonthlyResults(buildMonthlyResults(imported.transactions));
+              if (importedFileName) setFileName(importedFileName);
+              toast(`Imported ${imported.transactions.length} transactions from encrypted file`, "success");
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          />
         </section>
 
-        {/* History Panel — only show if logged in with history */}
-        {user && history.length > 0 && (
-          <section className="pb-8">
-            <HistoryPanel
-              history={history}
-              onViewAnalysis={handleViewHistory}
-              onHistoryChange={refreshHistory}
-            />
-          </section>
-        )}
+        {/* Trust Icons — 3 feature cards */}
+        <section className="pb-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center catto-stagger">
+            {[
+              {
+                icon: LockKeyhole,
+                title: "No Upload",
+                desc: "Your file is read locally using the browser's FileReader API — it never leaves your device.",
+              },
+              {
+                icon: Eye,
+                title: "No Tracking",
+                desc: "No cookies, no analytics, no account needed. We don't know who you are.",
+              },
+              {
+                icon: Trash2,
+                title: "No Storage",
+                desc: "Close the page and all data is gone. Nothing is saved anywhere — ever.",
+              },
+            ].map((f) => (
+              <div key={f.title} className="catto-card flex flex-col items-center gap-4 p-6">
+                <div className="w-14 h-14 rounded-full bg-[var(--catto-primary-light)] flex items-center justify-center">
+                  <f.icon className="w-6 h-6 text-[var(--catto-primary-hover)]" />
+                </div>
+                <h3 className="text-lg font-bold text-[var(--catto-slate-900)]">{f.title}</h3>
+                <p className="text-sm text-[var(--catto-slate-500)] leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
-        {/* How Your Data Flows — visual trust strip */}
+        {/* HISTORY_DISABLED: History Panel was here */}
+        {/* {user && history.length > 0 && (
+          <section className="pb-8">
+            <HistoryPanel history={history} onViewAnalysis={handleViewHistory} onHistoryChange={refreshHistory} />
+          </section>
+        )} */}
+
+        {/* How Your Data Flows */}
         <section className="pb-10">
           <h2 className="text-center text-xl sm:text-2xl font-extrabold text-[var(--catto-slate-900)] mb-2">
             How your data flows
@@ -267,24 +220,23 @@ function HomeInner() {
             Everything happens inside your browser. Nothing crosses the line.
           </p>
 
-          <div className="relative rounded-2xl border-2 border-dashed border-[var(--catto-green-500)] bg-white p-5 sm:p-6">
-            {/* Badge */}
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--catto-green-600)] text-white text-[11px] font-bold px-3.5 py-0.5 rounded-full whitespace-nowrap">
+          <div className="relative rounded-2xl border-2 border-dashed border-[var(--catto-primary)] bg-white p-5 sm:p-6">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-[var(--catto-primary-hover)] text-white text-[11px] font-bold px-3.5 py-0.5 rounded-full whitespace-nowrap">
               Your Browser — Offline
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mt-1">
               {[
-                { icon: FileText, step: "1", title: "You pick a file", desc: "PDF / CSV / XLSX — read by FileReader API", color: "var(--catto-blue-500)", bg: "var(--catto-blue-50)" },
-                { icon: Cpu, step: "2", title: "Parsed in-browser", desc: "JavaScript extracts transactions locally", color: "var(--catto-primary-hover)", bg: "var(--catto-primary-light)" },
-                { icon: HardDrive, step: "3", title: "Analyzed on-device", desc: "Categories, charts, insights — zero network", color: "var(--catto-green-600)", bg: "var(--catto-green-50)" },
-                { icon: Trash2, step: "4", title: "Gone when you close", desc: "Close the tab and data vanishes forever", color: "var(--catto-orange-600)", bg: "var(--catto-orange-50)" },
+                { icon: FileText, step: "1", title: "You pick a file", desc: "PDF / CSV / TXT — read by FileReader API" },
+                { icon: Cpu, step: "2", title: "Parsed in-browser", desc: "JavaScript extracts transactions locally" },
+                { icon: HardDrive, step: "3", title: "Analyzed on-device", desc: "Categories, charts, insights — zero network" },
+                { icon: Trash2, step: "4", title: "Gone when you close", desc: "Close the tab and data vanishes forever" },
               ].map((s) => (
-                <div key={s.step} className="relative text-center p-3 sm:p-4 rounded-xl border" style={{ borderColor: s.color, background: s.bg }}>
-                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white mx-auto mb-2" style={{ background: s.color }}>
+                <div key={s.step} className="relative text-center p-3 sm:p-4 rounded-xl border border-[var(--catto-slate-200)] bg-[var(--catto-primary-light)]">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white mx-auto mb-2 bg-[var(--catto-primary-hover)]">
                     {s.step}
                   </div>
-                  <s.icon className="w-5 h-5 mx-auto mb-1.5" style={{ color: s.color }} />
+                  <s.icon className="w-5 h-5 mx-auto mb-1.5 text-[var(--catto-primary-hover)]" />
                   <div className="text-xs sm:text-sm font-bold text-[var(--catto-slate-900)] mb-0.5">{s.title}</div>
                   <div className="text-[10px] sm:text-xs text-[var(--catto-slate-500)] leading-snug">{s.desc}</div>
                 </div>
@@ -293,20 +245,21 @@ function HomeInner() {
           </div>
         </section>
 
-        {/* What We Don't Do — compact strip */}
+        {/* What we'll never do */}
         <section className="pb-10">
+          <h3 className="text-center text-sm font-bold text-[var(--catto-slate-700)] mb-3">What we&apos;ll never do</h3>
           <div className="bg-[var(--catto-slate-50)] rounded-xl border border-[var(--catto-slate-200)] px-5 py-4">
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2">
               {[
-                "No file uploads to any server",
-                "No cookies or tracking scripts",
-                "No account required",
-                "No analytics or telemetry",
-                "No database — we can't store it",
-                "No API key persisted to disk",
+                "Upload files to any server",
+                "Use cookies or tracking scripts",
+                "Require an account",
+                "Collect analytics or telemetry",
+                "Store data in any database",
+                "Persist API keys to disk",
               ].map((item) => (
                 <div key={item} className="flex items-center gap-1.5">
-                  <span className="text-[var(--catto-red-500)] font-bold text-xs shrink-0">&times;</span>
+                  <span className="text-[var(--catto-primary-hover)] font-bold text-xs shrink-0">—</span>
                   <span className="text-xs text-[var(--catto-slate-600)]">{item}</span>
                 </div>
               ))}
@@ -315,7 +268,7 @@ function HomeInner() {
         </section>
 
         {/* CTAs */}
-        <section className="pb-20">
+        <section className="pb-12">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/security" className="group catto-btn-secondary py-3 px-6 justify-center">
               <ShieldCheck className="w-4 h-4 text-[var(--catto-green-600)]" />
@@ -327,42 +280,32 @@ function HomeInner() {
             </Link>
           </div>
         </section>
+
+        {/* Disclaimer */}
+        <section className="pb-20">
+          <p className="text-center text-xs text-[var(--catto-slate-400)] max-w-xl mx-auto leading-relaxed">
+            Personal side project — not financial advice. Use at your own risk.{" "}
+            <Link href="/disclaimer" className="underline hover:text-[var(--catto-slate-600)]">Disclaimer</Link>
+          </p>
+        </section>
       </main>
 
       {/* Footer */}
       <footer className="border-t border-[var(--catto-primary-20)] py-6">
-        <div className="max-w-6xl mx-auto px-6">
+        <div className="max-w-6xl mx-auto px-6 space-y-2">
           <div className="flex items-center justify-center gap-2 text-sm text-[var(--catto-slate-400)]">
             <ShieldCheck className="w-4 h-4" aria-hidden="true" />
             All data processed locally — close this page and everything is gone
           </div>
+          <div className="flex items-center justify-center gap-4 text-xs text-[var(--catto-slate-400)]">
+            <Link href="/disclaimer" className="hover:text-[var(--catto-slate-600)]">Disclaimer</Link>
+            <span>·</span>
+            <Link href="/security" className="hover:text-[var(--catto-slate-600)]">Security</Link>
+          </div>
         </div>
       </footer>
 
-      {/* Wipe All Data Confirmation */}
-      <FocusTrapDialog open={showWipeConfirm} onClose={() => setShowWipeConfirm(false)} ariaLabelledBy="wipe-dialog-title">
-        <div className="flex items-center gap-3 text-[var(--catto-red-600)]">
-          <AlertTriangle className="w-6 h-6" aria-hidden="true" />
-          <h3 id="wipe-dialog-title" className="text-lg font-bold">Wipe All Data?</h3>
-        </div>
-        <p className="text-sm text-[var(--catto-slate-600)]">
-          This will permanently delete all accounts, analysis history, and settings from this browser. This cannot be undone.
-        </p>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowWipeConfirm(false)}
-            className="flex-1 catto-btn-secondary justify-center py-2.5"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleWipeAll}
-            className="flex-1 bg-[var(--catto-red-600)] text-white rounded-xl py-2.5 px-4 text-sm font-bold hover:bg-[var(--catto-red-700)] transition-colors cursor-pointer"
-          >
-            Wipe Everything
-          </button>
-        </div>
-      </FocusTrapDialog>
+      {/* AUTH_DISABLED: Wipe All Data dialog was here */}
     </div>
   );
 }

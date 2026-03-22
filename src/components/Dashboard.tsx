@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   FileSpreadsheet,
   FileText,
@@ -18,26 +18,29 @@ import {
   ChevronUp,
   ChevronDown,
   Lock,
+  ChevronRight,
 } from "lucide-react";
 import type { AnalysisResult, RawTransaction, AICoachingData, MonthlyResult } from "@/lib/types";
-import { exportCSV, exportPDF, exportEncrypted } from "@/lib/export";
+import { exportXLSX, exportPDF, exportEncrypted } from "@/lib/export";
 import { maskTransactionsForAI, createSafeSummary, exportMaskedCSV } from "@/lib/masker";
 import { aiCategorize, aiCoach } from "@/lib/ai-service";
-import { analyze } from "@/lib/analyzer";
+import { analyze, buildResultFromClassified } from "@/lib/analyzer";
 import { useToast } from "@/components/Toast";
 import { getCategoryEmoji } from "@/lib/category-emoji";
 import SummaryCards from "./SummaryCards";
-import { ExpenseBreakdownChart, CategoryBarChart, IncomeExpensesChart, SubcategoryDonutChart } from "./Charts";
+import { ExpenseBreakdownChart, CategoryBarChart, SpendingTrendChart, SubcategoryDonutChart, SUB_COLORS } from "./Charts";
 import Insights from "./Insights";
 import AICoaching from "./AICoaching";
 import PrivacyPreview from "./PrivacyPreview";
 import InsightHub from "./InsightHub";
 import FocusTrapDialog from "./FocusTrapDialog";
 
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 interface DashboardProps {
   result: AnalysisResult;
   rawTransactions: RawTransaction[];
-  onResultUpdate: (result: AnalysisResult, aiCategories?: Record<number, string>) => void;
+  onResultUpdate: (result: AnalysisResult) => void;
   onReset: () => void;
   monthlyResults?: MonthlyResult[];
 }
@@ -55,6 +58,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
   const [showEncryptModal, setShowEncryptModal] = useState(false);
   const [encryptPassword, setEncryptPassword] = useState("");
   const [encryptConfirm, setEncryptConfirm] = useState("");
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [activeMonth, setActiveMonth] = useState<string>("all");
   const [filterYear, setFilterYear] = useState<string>("all");
   const [filterMonth, setFilterMonth] = useState<string>("all");
@@ -63,7 +67,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
   const [catSearch, setCatSearch] = useState("");
   const [catCountryFilter, setCatCountryFilter] = useState<string>("all");
   const [catSubcategoryFilter, setCatSubcategoryFilter] = useState<string>("all");
-  const [catSortField, setCatSortField] = useState<"date" | "amount" | "description" | "subcategory" | "country">("amount");
+  const [catSortField, setCatSortField] = useState<"date" | "amount" | "description" | "subcategory" | "country" | "source">("amount");
   const [catSortDir, setCatSortDir] = useState<"asc" | "desc">("desc");
 
   // All Transactions table state
@@ -71,9 +75,11 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
   const [txCategoryFilter, setTxCategoryFilter] = useState<string>("all");
   const [txCountryFilter, setTxCountryFilter] = useState<string>("all");
   const [txTypeFilter, setTxTypeFilter] = useState<string>("all");
-  const [txSortField, setTxSortField] = useState<"date" | "amount" | "description" | "category" | "subcategory" | "country">("date");
+  const [txSourceFilter, setTxSourceFilter] = useState<string>("all");
+  const [txSortField, setTxSortField] = useState<"date" | "amount" | "description" | "category" | "subcategory" | "country" | "source">("date");
   const [txSortDir, setTxSortDir] = useState<"asc" | "desc">("desc");
   const [txExpanded, setTxExpanded] = useState(false);
+  const [txExpandedRow, setTxExpandedRow] = useState<number | null>(null);
   const [txShowCount, setTxShowCount] = useState(25);
 
   // Determine which result to show based on selected month
@@ -92,7 +98,6 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
     return monthlyResults.filter((m) => m.month.startsWith(filterYear));
   }, [monthlyResults, filterYear]);
 
-  const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   // Sync filter dropdowns → activeMonth
   useEffect(() => {
@@ -111,18 +116,9 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
       return monthlyResults?.find((m) => m.month === activeMonth)?.result || result;
     }
     if (filterYear !== "all" && monthlyResults) {
-      // Filter to only transactions from the selected year
       const yearMonths = monthlyResults.filter((m) => m.month.startsWith(filterYear));
       if (yearMonths.length > 0 && yearMonths.length < monthlyResults.length) {
-        // Combine transactions from all months in this year
-        const yearTxns: import("@/lib/types").RawTransaction[] = [];
-        for (const m of yearMonths) {
-          for (const t of m.result.transactions) {
-            yearTxns.push({ date: t.date, amount: t.amount, description: t.description, source: t.source });
-          }
-        }
-        // Re-analyze just this year's data
-        return analyze(yearTxns) as AnalysisResult;
+        return buildResultFromClassified(yearMonths.flatMap((m) => m.result.transactions));
       }
     }
     return result;
@@ -140,7 +136,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
   // Keep toggles in sync when switching months/results
   useEffect(() => {
     setExcludedSubcats(new Set((activeResult.excludedTransferGroups || []).map((g) => g.subcategory)));
-  }, [excludedGroupsKey, activeResult.excludedTransferGroups]);
+  }, [excludedGroupsKey]);
 
   // Compute adjusted totals based on toggle selections
   const adjustedResult = useMemo(() => {
@@ -148,43 +144,32 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
     if (groups.length === 0) return activeResult;
 
     let addBackExpense = 0;
-    let addBackIncome = 0;
     for (const g of groups) {
       if (!excludedSubcats.has(g.subcategory)) {
         addBackExpense += g.expenseTotal;
-        addBackIncome += g.incomeTotal;
       }
     }
 
-    if (addBackExpense === 0 && addBackIncome === 0) return activeResult;
+    if (addBackExpense === 0) return activeResult;
 
-    const newIncome = Math.round((activeResult.totalIncome + addBackIncome) * 100) / 100;
     const newExpenses = Math.round((activeResult.totalExpenses + addBackExpense) * 100) / 100;
     return {
       ...activeResult,
-      totalIncome: newIncome,
       totalExpenses: newExpenses,
-      netFlow: Math.round((newIncome - newExpenses) * 100) / 100,
     };
   }, [activeResult, excludedSubcats]);
 
-  // Compute previous month result for comparison
+  // Compute previous month result for comparison (only meaningful for single-month view)
   const previousResult = useMemo(() => {
     if (!monthlyResults || monthlyResults.length < 2) return undefined;
-    if (activeMonth === "all") {
-      // When filtering by year, compare last two months in that year
-      const pool = filterYear !== "all"
-        ? monthlyResults.filter((m) => m.month.startsWith(filterYear))
-        : monthlyResults;
-      if (pool.length < 2) return undefined;
-      return pool[pool.length - 2]?.result;
-    }
+    // No comparison for aggregate views — comparing totals vs one month is meaningless
+    if (activeMonth === "all") return undefined;
     const idx = monthlyResults.findIndex((m) => m.month === activeMonth);
     if (idx > 0) return monthlyResults[idx - 1].result;
     return undefined;
-  }, [activeMonth, filterYear, monthlyResults]);
+  }, [activeMonth, monthlyResults]);
 
-  const handleExport = async (type: "csv" | "pdf" | "encrypted") => {
+  const handleExport = async (type: "xlsx" | "pdf" | "encrypted") => {
     if (type === "encrypted") {
       setEncryptPassword("");
       setEncryptConfirm("");
@@ -193,8 +178,8 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
     }
     setExporting(true);
     try {
-      if (type === "csv") {
-        await exportCSV(activeResult);
+      if (type === "xlsx") {
+        await exportXLSX(activeResult);
         toast("Exported as XLSX", "success");
       } else {
         await exportPDF(activeResult);
@@ -208,8 +193,8 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
   };
 
   const handleEncryptedExport = async () => {
-    if (encryptPassword.length < 4) {
-      toast("Password must be at least 4 characters", "error");
+    if (encryptPassword.length < 8) {
+      toast("Password must be at least 8 characters", "error");
       return;
     }
     if (encryptPassword !== encryptConfirm) {
@@ -241,7 +226,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
       const masked = maskTransactionsForAI(rawTransactions);
       const { categories } = await aiCategorize(apiKey.trim(), masked);
       const enhanced = analyze(rawTransactions, categories);
-      onResultUpdate(enhanced, categories);
+      onResultUpdate(enhanced);
       const safeSummary = createSafeSummary(enhanced);
       const coachResult = await aiCoach(apiKey.trim(), safeSummary);
       setCoaching(coachResult);
@@ -284,59 +269,70 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
               {activeResult.transactions.length} transactions &bull; {activeResult.dateRange.from} to {activeResult.dateRange.to}
             </p>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 -mb-1 scrollbar-none">
+          <div className="flex items-center gap-2">
             {!aiEnhanced ? (
               <button
                 onClick={() => setShowAIPanel(!showAIPanel)}
                 className="catto-btn-primary text-sm"
               >
-                <Sparkles className="w-4 h-4" />
-                Enhance with AI
+                <Sparkles className="w-4 h-4" /> AI
               </button>
             ) : (
-              <span className="catto-badge catto-badge-green flex items-center gap-1 px-3 py-1.5">
-                <Sparkles className="w-3.5 h-3.5" /> AI Enhanced
+              <span className="catto-badge catto-badge-green flex items-center gap-1 px-2 py-1">
+                <Sparkles className="w-3 h-3" /> AI
               </span>
             )}
-            <button
-              onClick={() => handleExport("csv")}
-              disabled={exporting}
-              aria-busy={exporting}
-              aria-label={exporting ? "Exporting Excel..." : "Export as Excel"}
-              className="catto-btn-primary text-sm bg-[var(--catto-blue-500)] text-white shadow-blue-200"
-            >
-              {exporting ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <FileSpreadsheet className="w-4 h-4" aria-hidden="true" />} Excel
-            </button>
-            <button
-              onClick={() => handleExport("pdf")}
-              disabled={exporting}
-              aria-busy={exporting}
-              aria-label={exporting ? "Exporting PDF..." : "Export as PDF"}
-              className="catto-btn-primary text-sm bg-[var(--catto-blue-600)] text-white shadow-blue-200"
-            >
-              {exporting ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> : <FileText className="w-4 h-4" aria-hidden="true" />} PDF
-            </button>
-            <button
-              onClick={() => exportMaskedCSV(rawTransactions)}
-              aria-label="Export masked CSV"
-              className="catto-btn-primary text-sm bg-[var(--catto-purple-500)] text-white shadow-purple-200"
-            >
-              <ShieldCheck className="w-4 h-4" aria-hidden="true" /> Masked CSV
-            </button>
-            <button
-              onClick={() => handleExport("encrypted")}
-              disabled={exporting}
-              aria-busy={exporting}
-              aria-label={exporting ? "Exporting encrypted..." : "Export encrypted"}
-              className="catto-btn-primary text-sm bg-[var(--catto-slate-700)] text-white shadow-slate-200"
-            >
-              <Lock className="w-4 h-4" aria-hidden="true" /> Encrypted
-            </button>
+
+            {/* Export dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowExportMenu(!showExportMenu)}
+                className="catto-btn-primary text-sm bg-[var(--catto-blue-500)] text-white"
+              >
+                {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Export <ChevronDown className="w-3 h-3" />
+              </button>
+              {showExportMenu && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 bg-white rounded-lg border border-[var(--catto-slate-200)] shadow-xl py-1 min-w-[180px]">
+                    <button
+                      onClick={() => { handleExport("xlsx"); setShowExportMenu(false); }}
+                      disabled={exporting}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--catto-slate-700)] hover:bg-[var(--catto-slate-50)] transition-colors"
+                    >
+                      <FileSpreadsheet className="w-4 h-4 text-[var(--catto-blue-500)]" /> Excel (.xlsx)
+                    </button>
+                    <button
+                      onClick={() => { handleExport("pdf"); setShowExportMenu(false); }}
+                      disabled={exporting}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--catto-slate-700)] hover:bg-[var(--catto-slate-50)] transition-colors"
+                    >
+                      <FileText className="w-4 h-4 text-[var(--catto-blue-600)]" /> PDF Report
+                    </button>
+                    <button
+                      onClick={() => { handleExport("encrypted"); setShowExportMenu(false); }}
+                      disabled={exporting}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--catto-slate-700)] hover:bg-[var(--catto-slate-50)] transition-colors"
+                    >
+                      <Lock className="w-4 h-4 text-[var(--catto-slate-600)]" /> Encrypted (.catto)
+                    </button>
+                    <div className="border-t border-[var(--catto-slate-100)] my-1" />
+                    <button
+                      onClick={() => { exportMaskedCSV(rawTransactions); setShowExportMenu(false); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--catto-slate-700)] hover:bg-[var(--catto-slate-50)] transition-colors"
+                    >
+                      <ShieldCheck className="w-4 h-4 text-[var(--catto-purple-500)]" /> Masked CSV
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+
             <button
               onClick={onReset}
               className="catto-btn-secondary text-sm"
             >
-              <RotateCcw className="w-4 h-4" /> New Analysis
+              <RotateCcw className="w-4 h-4" /> New
             </button>
           </div>
         </div>
@@ -394,9 +390,8 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                 >
                   All
                 </button>
-                {availableMonths.map((m) => {
-                  const isActive = filterYear !== "all" && filterMonth === m.month.slice(5, 7)
-                    || filterYear === "all" && activeMonth === m.month;
+                {(monthlyResults || []).map((m) => {
+                  const isActive = activeMonth === m.month;
                   return (
                     <button
                       key={m.month}
@@ -419,6 +414,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
             </div>
           </div>
         )}
+
 
         {/* AI Enhancement Panel */}
         {showAIPanel && (
@@ -611,9 +607,6 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
             .sort((a, b) => b.total - a.total);
           const hasSubcategories = !(subBreakdown.length <= 1 && subBreakdown[0]?.name === "Other");
 
-          // Sub-dashboard palette
-          const SUB_COLORS = ["#60a5fa","#f472b6","#34d399","#fbbf24","#a78bfa","#fb923c","#22d3ee","#f87171","#4ade80","#e879f9"];
-
           return (
             <div className="bg-white rounded-xl border border-[var(--catto-slate-100)] shadow-xl overflow-hidden">
               {/* Header bar */}
@@ -737,6 +730,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                       case "description": cmp = a.description.localeCompare(b.description); break;
                       case "subcategory": cmp = (a.subcategory || "").localeCompare(b.subcategory || ""); break;
                       case "country": cmp = (a.country || "").localeCompare(b.country || ""); break;
+                      case "source": cmp = (a.source || "").localeCompare(b.source || ""); break;
                     }
                     return catSortDir === "desc" ? -cmp : cmp;
                   });
@@ -774,6 +768,9 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                               <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden md:table-cell" tabIndex={0} aria-sort={catSortField === "country" ? (catSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleCatSort("country")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCatSort("country"); } }}>
                                 <span className="inline-flex items-center">Country<CatSortIcon field="country" /></span>
                               </th>
+                              <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden md:table-cell" tabIndex={0} aria-sort={catSortField === "source" ? (catSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleCatSort("source")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCatSort("source"); } }}>
+                                <span className="inline-flex items-center">Source<CatSortIcon field="source" /></span>
+                              </th>
                               <th className="pb-3 font-medium text-right cursor-pointer select-none" tabIndex={0} aria-sort={catSortField === "amount" ? (catSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleCatSort("amount")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCatSort("amount"); } }}>
                                 <span className="inline-flex items-center justify-end">Amount<CatSortIcon field="amount" /></span>
                               </th>
@@ -792,6 +789,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                                   ) : <span className="text-[var(--catto-slate-300)]">—</span>}
                                 </td>
                                 <td className="py-3 pr-4 text-[var(--catto-slate-500)] whitespace-nowrap text-xs hidden md:table-cell">{t.country || "—"}</td>
+                                <td className="py-3 pr-4 text-[var(--catto-slate-500)] whitespace-nowrap text-xs hidden md:table-cell">{t.source || "—"}</td>
                                 <td className={`py-3 text-right font-black whitespace-nowrap ${t.type === "income" ? "text-[var(--catto-green-600)]" : "text-[var(--catto-orange-600)]"}`}>
                                   {t.type === "income" ? "+" : "-"}${Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                                 </td>
@@ -887,13 +885,9 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
         {/* Recurring Charges & Spending Spikes */}
         <Insights recurring={activeResult.recurring} spikes={activeResult.spikes} />
 
-        {/* Income vs Expenses Over Time (only when viewing multiple months) */}
+        {/* Monthly Spending Trend (only when viewing multiple months) */}
         {hasMultipleMonths && (filterMonth === "all") && (
-          <IncomeExpensesChart
-            monthlyData={activeResult.monthlyData}
-            totalIncome={adjustedResult.totalIncome}
-            incomeTransactions={activeResult.transactions.filter((t) => t.type === "income" && t.category === "Income")}
-          />
+          <SpendingTrendChart monthlyData={activeResult.monthlyData} />
         )}
 
         {/* AI Coaching */}
@@ -958,10 +952,26 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                 <option value="expense">Expense</option>
                 <option value="income">Income</option>
               </select>
+              {(() => {
+                const sources = Array.from(new Set(activeResult.transactions.map((t) => t.source || "Unknown"))).sort();
+                if (sources.length <= 1) return null;
+                return (
+                  <select
+                    value={txSourceFilter}
+                    onChange={(e) => setTxSourceFilter(e.target.value)}
+                    className="text-sm border border-[var(--catto-slate-200)] rounded-lg px-3 py-2 min-h-[44px] bg-white text-[var(--catto-slate-700)] focus:outline-none focus:ring-2 focus:ring-[var(--catto-primary)]"
+                  >
+                    <option value="all">All Sources</option>
+                    {sources.map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                );
+              })()}
             </div>
-            {(txSearch || txCategoryFilter !== "all" || txCountryFilter !== "all" || txTypeFilter !== "all") && (
+            {(txSearch || txCategoryFilter !== "all" || txCountryFilter !== "all" || txTypeFilter !== "all" || txSourceFilter !== "all") && (
               <button
-                onClick={() => { setTxSearch(""); setTxCategoryFilter("all"); setTxCountryFilter("all"); setTxTypeFilter("all"); }}
+                onClick={() => { setTxSearch(""); setTxCategoryFilter("all"); setTxCountryFilter("all"); setTxTypeFilter("all"); setTxSourceFilter("all"); }}
                 className="text-xs text-[var(--catto-slate-500)] hover:text-[var(--catto-slate-800)] underline cursor-pointer min-h-[44px] px-2"
               >
                 Clear filters
@@ -975,6 +985,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
               if (txCategoryFilter !== "all" && t.category !== txCategoryFilter) return false;
               if (txCountryFilter !== "all" && (t.country || "Unknown") !== txCountryFilter) return false;
               if (txTypeFilter !== "all" && t.type !== txTypeFilter) return false;
+              if (txSourceFilter !== "all" && (t.source || "Unknown") !== txSourceFilter) return false;
               return true;
             });
             const sorted = filtered.slice().sort((a, b) => {
@@ -986,6 +997,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                 case "category": cmp = a.category.localeCompare(b.category); break;
                 case "subcategory": cmp = (a.subcategory || "").localeCompare(b.subcategory || ""); break;
                 case "country": cmp = (a.country || "").localeCompare(b.country || ""); break;
+                case "source": cmp = (a.source || "").localeCompare(b.source || ""); break;
               }
               return txSortDir === "desc" ? -cmp : cmp;
             });
@@ -1025,31 +1037,56 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
                         <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden md:table-cell" tabIndex={0} aria-sort={txSortField === "country" ? (txSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleSort("country")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSort("country"); } }}>
                           <span className="inline-flex items-center">Country<SortIcon field="country" /></span>
                         </th>
+                        <th className="pb-3 pr-4 font-medium cursor-pointer select-none hidden md:table-cell" tabIndex={0} aria-sort={txSortField === "source" ? (txSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleSort("source")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSort("source"); } }}>
+                          <span className="inline-flex items-center">Source<SortIcon field="source" /></span>
+                        </th>
                         <th className="pb-3 font-medium text-right cursor-pointer select-none" tabIndex={0} aria-sort={txSortField === "amount" ? (txSortDir === "asc" ? "ascending" : "descending") : "none"} onClick={() => toggleSort("amount")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSort("amount"); } }}>
                           <span className="inline-flex items-center justify-end">Amount<SortIcon field="amount" /></span>
                         </th>
                       </tr>
                     </thead>
                     <tbody>
-                      {sorted.slice(0, txShowCount).map((t, i) => (
-                        <tr key={i} className="border-b border-[var(--catto-slate-50)] hover:bg-[var(--catto-primary-light)] transition-colors">
-                          <td className="py-3 pr-4 text-[var(--catto-slate-600)] whitespace-nowrap">{t.date}</td>
-                          <td className="py-3 pr-4 min-w-0">
-                            <p className="text-sm font-medium text-[var(--catto-slate-800)] truncate">{t.description}</p>
-                            <span className="sm:hidden text-xs text-[var(--catto-slate-500)]">{getCategoryEmoji(t.category)} {t.category}</span>
-                          </td>
-                          <td className="py-3 pr-4 whitespace-nowrap hidden sm:table-cell">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-[var(--catto-primary-light)] text-[var(--catto-slate-700)]">
-                              {getCategoryEmoji(t.category)} {t.category}
-                            </span>
-                          </td>
-                          <td className="py-3 pr-4 text-[var(--catto-slate-500)] text-xs whitespace-nowrap hidden sm:table-cell">{t.subcategory || "—"}</td>
-                          <td className="py-3 pr-4 text-[var(--catto-slate-500)] whitespace-nowrap text-xs hidden md:table-cell">{t.country || "—"}</td>
-                          <td className={`py-3 text-right font-black whitespace-nowrap ${t.type === "income" ? "text-[var(--catto-green-600)]" : "text-[var(--catto-orange-600)]"}`}>
-                            {t.type === "income" ? "+" : "-"}${Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </td>
-                        </tr>
-                      ))}
+                      {sorted.slice(0, txShowCount).map((t, i) => {
+                        const isOpen = txExpandedRow === i;
+                        return (
+                          <React.Fragment key={i}>
+                            <tr
+                              className={`border-b border-[var(--catto-slate-50)] hover:bg-[var(--catto-primary-light)] transition-colors cursor-pointer ${isOpen ? "bg-[var(--catto-primary-light)]" : ""}`}
+                              onClick={() => setTxExpandedRow(isOpen ? null : i)}
+                            >
+                              <td className="py-3 pr-4 text-[var(--catto-slate-600)] whitespace-nowrap">{t.date}</td>
+                              <td className="py-3 pr-4 min-w-0">
+                                <p className="text-sm font-medium text-[var(--catto-slate-800)] truncate">{t.description}</p>
+                                <span className="sm:hidden text-xs text-[var(--catto-slate-500)]">{getCategoryEmoji(t.category)} {t.category}{t.source ? ` · ${t.source}` : ""}</span>
+                              </td>
+                              <td className="py-3 pr-4 whitespace-nowrap hidden sm:table-cell">
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-[var(--catto-primary-light)] text-[var(--catto-slate-700)]">
+                                  {getCategoryEmoji(t.category)} {t.category}
+                                </span>
+                              </td>
+                              <td className="py-3 pr-4 text-[var(--catto-slate-500)] text-xs whitespace-nowrap hidden sm:table-cell">{t.subcategory || "—"}</td>
+                              <td className="py-3 pr-4 text-[var(--catto-slate-500)] whitespace-nowrap text-xs hidden md:table-cell">{t.country || "—"}</td>
+                              <td className="py-3 pr-4 text-[var(--catto-slate-500)] whitespace-nowrap text-xs hidden md:table-cell">{t.source || "—"}</td>
+                              <td className={`py-3 text-right font-black whitespace-nowrap ${t.type === "income" ? "text-[var(--catto-green-600)]" : "text-[var(--catto-orange-600)]"}`}>
+                                {t.type === "income" ? "+" : "-"}${Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                            {isOpen && (
+                              <tr className="bg-[var(--catto-slate-50)]">
+                                <td colSpan={7} className="px-4 py-3">
+                                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-[var(--catto-slate-500)]">
+                                    {t.sourceFile && <span><strong className="text-[var(--catto-slate-700)]">File:</strong> {t.sourceFile}</span>}
+                                    {t.source && <span><strong className="text-[var(--catto-slate-700)]">Bank:</strong> {t.source}</span>}
+                                    {t.country && <span><strong className="text-[var(--catto-slate-700)]">Country:</strong> {t.country}</span>}
+                                    {t.subcategory && <span><strong className="text-[var(--catto-slate-700)]">Subcategory:</strong> {t.subcategory}</span>}
+                                    <span><strong className="text-[var(--catto-slate-700)]">Type:</strong> {t.type}</span>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                   {sorted.length > txShowCount && (
@@ -1102,7 +1139,7 @@ export default function Dashboard({ result, rawTransactions, onResultUpdate, onR
             type="password"
             value={encryptPassword}
             onChange={(e) => setEncryptPassword(e.target.value)}
-            placeholder="Password (min 4 characters)"
+            placeholder="Password (min 8 characters)"
             className="w-full rounded-lg border border-[var(--catto-primary-20)] px-3 py-2.5 text-sm text-[var(--catto-slate-800)] focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-[var(--catto-primary)] outline-none"
             autoFocus
           />

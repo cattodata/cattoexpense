@@ -113,8 +113,8 @@ export default function SupportedPage() {
               },
               {
                 icon: FileSpreadsheet,
-                format: "XLSX",
-                desc: "Excel spreadsheets from bank exports.",
+                format: "TXT",
+                desc: "Tab-delimited or text exports from banks.",
                 color: "var(--catto-blue-500)",
                 bg: "var(--catto-blue-50)",
               },

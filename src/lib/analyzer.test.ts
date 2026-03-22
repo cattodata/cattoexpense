@@ -20,8 +20,8 @@ describe("analyze", () => {
     ];
     const result = analyze(transactions);
     expect(result.totalExpenses).toBe(150);
-    expect(result.totalIncome).toBe(3000);
-    expect(result.netFlow).toBe(2850);
+    expect(result.totalIncome).toBe(0); // Income display removed — expense-only app
+    expect(result.netFlow).toBe(-150);
   });
 
   it("classifies income vs expense", () => {
@@ -46,14 +46,17 @@ describe("analyze", () => {
     expect(result.totalExpenses).toBe(100);
   });
 
-  it("excludes internal transfers from income", () => {
+  it("classifies positive amounts as credit/transfer", () => {
     const transactions: RawTransaction[] = [
       makeTx({ amount: 3000, description: "Salary" }),
       makeTx({ amount: 500, description: "Transfer From Savings" }),
     ];
     const result = analyze(transactions);
-    // Only salary should count as real income
-    expect(result.totalIncome).toBe(3000);
+    expect(result.totalIncome).toBe(0); // Income not tracked
+    const salary = result.transactions.find(t => t.description === "Salary");
+    const transfer = result.transactions.find(t => t.description === "Transfer From Savings");
+    expect(salary?.category).toBe("Credit");
+    expect(transfer?.category).toBe("Transfer");
   });
 
   it("detects refunds", () => {
@@ -133,9 +136,7 @@ describe("analyze", () => {
   it("handles empty input", () => {
     const result = analyze([]);
     expect(result.transactions).toHaveLength(0);
-    expect(result.totalIncome).toBe(0);
     expect(result.totalExpenses).toBe(0);
-    expect(result.netFlow).toBe(0);
   });
 
   it("classifies BPAY to HSBC as Transfer (excluded from spending)", () => {

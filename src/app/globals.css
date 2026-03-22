@@ -316,6 +316,10 @@ body {
   .catto-btn-primary:hover {
     transform: none;
   }
+
+  html {
+    scroll-behavior: auto;
+  }
 }
 
 /* Hide scrollbar utility */

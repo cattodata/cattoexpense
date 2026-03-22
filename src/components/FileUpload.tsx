@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useState, useRef } from "react";
-import { Upload, FileText, AlertCircle, Loader2, Plus, Trash2, CreditCard, Lock, Eye, Clock } from "lucide-react";
+import { Upload, FileText, AlertCircle, Loader2, Plus, Trash2, CreditCard, Lock, Eye, Clock, Key } from "lucide-react";
 import { parseCSV } from "@/lib/parser";
 import { parsePDF } from "@/lib/pdf-parser";
-import type { RawTransaction, ColumnMapping } from "@/lib/types";
+import { importEncrypted } from "@/lib/export";
+import type { RawTransaction, ColumnMapping, AnalysisResult } from "@/lib/types";
 
 interface ParsedFile {
   id: string;
@@ -15,9 +16,10 @@ interface ParsedFile {
 
 interface FileUploadProps {
   onParsed: (transactions: RawTransaction[], fileName?: string) => void;
+  onImportResult?: (result: AnalysisResult, fileName: string) => void;
 }
 
-export default function FileUpload({ onParsed }: FileUploadProps) {
+export default function FileUpload({ onParsed, onImportResult }: FileUploadProps) {
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -26,6 +28,10 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [pendingFileName, setPendingFileName] = useState<string | null>(null);
   const [mapping, setMapping] = useState<ColumnMapping>({ date: "", amount: "", description: "" });
+  const [cattoFile, setCattoFile] = useState<File | null>(null);
+  const [cattoPassword, setCattoPassword] = useState("");
+  const [cattoLoading, setCattoLoading] = useState(false);
+  const [cattoError, setCattoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const addParsedFile = useCallback(
@@ -57,8 +63,16 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
 
       const ext = file.name.toLowerCase().split(".").pop();
 
+      if (ext === "catto") {
+        setCattoFile(file);
+        setCattoPassword("");
+        setCattoError(null);
+        setLoading(false);
+        return;
+      }
+
       if (ext !== "csv" && ext !== "txt" && ext !== "pdf") {
-        setError("Unsupported file format. Please upload a CSV or PDF file.");
+        setError("Unsupported file format. Please upload a CSV, PDF, or .catto file.");
         setLoading(false);
         return;
       }
@@ -75,8 +89,7 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
             }
             const { transactions, rawLines, bankName } = await parsePDF(arrayBuffer);
             if (transactions.length === 0) {
-              const sample = rawLines.slice(0, 30).map((l, i) => `${i + 1}: ${l}`).join("\n");
-              setError(`No transactions found in this PDF (detected: ${bankName || "Unknown"}).\n\nTips:\n• Make sure it's a text-based statement PDF, not a scanned image\n• Try downloading a fresh copy from your bank's website\n• CSV or XLSX exports usually work more reliably\n\n--- Debug info ---\n${sample}`);
+              setError(`No transactions found in this PDF (detected: ${bankName || "Unknown"}).\n\nTips:\n• Make sure it's a text-based statement PDF, not a scanned image\n• Try downloading a fresh copy from your bank's website\n• CSV or XLSX exports usually work more reliably`);
               setLoading(false);
               return;
             }
@@ -117,7 +130,7 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
           setLoading(false);
           return;
         }
-        addParsedFile(file.name, "Unknown", result.transactions);
+        addParsedFile(file.name, file.name.replace(/\.[^.]+$/, ""), result.transactions);
         setLoading(false);
       };
       reader.onerror = () => {
@@ -171,16 +184,76 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
   };
 
   const handleAnalyzeAll = () => {
-    const all = parsedFiles.flatMap((f) => f.transactions);
+    const all = parsedFiles.flatMap((f) =>
+      f.transactions.map((t) => ({ ...t, sourceFile: f.name }))
+    );
     if (all.length === 0) return;
     const names = parsedFiles.map((f) => f.name).join(", ");
     onParsed(all, names);
+  };
+
+  const handleCattoImport = async () => {
+    if (!cattoFile || !cattoPassword) return;
+    setCattoLoading(true);
+    setCattoError(null);
+    try {
+      const result = await importEncrypted(cattoFile, cattoPassword);
+      onImportResult?.(result, cattoFile.name);
+      setCattoFile(null);
+      setCattoPassword("");
+    } catch {
+      setCattoError("Wrong password or corrupted file. Please try again.");
+    } finally {
+      setCattoLoading(false);
+    }
   };
 
   const totalTx = parsedFiles.reduce((s, f) => s + f.transactions.length, 0);
 
   return (
     <div className="w-full max-w-2xl mx-auto space-y-5">
+      {/* .catto import password prompt */}
+      {cattoFile && (
+        <div className="catto-card p-8 text-left">
+          <h3 className="text-lg font-bold text-[var(--catto-slate-800)] mb-1 flex items-center gap-2">
+            <Lock className="w-5 h-5 text-[var(--catto-primary)]" /> Import Encrypted File
+          </h3>
+          <p className="text-sm text-[var(--catto-slate-500)] mb-4">
+            Enter the password used to encrypt <strong>{cattoFile.name}</strong>
+          </p>
+          <input
+            type="password"
+            value={cattoPassword}
+            onChange={(e) => setCattoPassword(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleCattoImport(); }}
+            placeholder="Enter password"
+            autoFocus
+            className="w-full rounded-xl border border-[var(--catto-primary-20)] px-3 py-2.5 text-sm text-[var(--catto-slate-800)] focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-[var(--catto-primary)] outline-none transition-all mb-3"
+          />
+          {cattoError && (
+            <p className="text-sm text-[var(--catto-red-600)] mb-3 flex items-center gap-1.5">
+              <AlertCircle className="w-4 h-4 shrink-0" /> {cattoError}
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={() => { setCattoFile(null); setCattoPassword(""); setCattoError(null); }}
+              className="catto-btn-secondary text-sm flex-1 justify-center py-2.5"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleCattoImport}
+              disabled={cattoLoading || !cattoPassword}
+              className="catto-btn-primary flex-1 justify-center py-2.5"
+            >
+              {cattoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+              {cattoLoading ? "Decrypting..." : "Decrypt & Open"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Column mapping UI */}
       {headers && (
         <div className="catto-card p-8 text-left">
@@ -265,7 +338,7 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.txt,.pdf"
+            accept=".csv,.txt,.pdf,.catto"
             multiple
             className="hidden"
             onChange={(e) => {
@@ -293,7 +366,7 @@ export default function FileUpload({ onParsed }: FileUploadProps) {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv,.txt,.pdf"
+            accept=".csv,.txt,.pdf,.catto"
             multiple
             className="hidden"
             onChange={(e) => {

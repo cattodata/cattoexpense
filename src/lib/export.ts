@@ -1,7 +1,7 @@
 import type { AnalysisResult } from "./types";
-import { encrypt, decrypt } from "./crypto";
+import { encrypt, decrypt, deriveAesKey, bytesToHex } from "./crypto";
 
-export async function exportCSV(result: AnalysisResult): Promise<void> {
+export async function exportXLSX(result: AnalysisResult): Promise<void> {
   const XLSX = await import("xlsx");
   const rows = result.transactions.map((t) => ({
     Date: t.date,
@@ -15,9 +15,7 @@ export async function exportCSV(result: AnalysisResult): Promise<void> {
 
   const ws = XLSX.utils.json_to_sheet(rows);
   const summaryRows = [
-    { Metric: "Total Income", Value: result.totalIncome },
     { Metric: "Total Expenses", Value: result.totalExpenses },
-    { Metric: "Net Flow", Value: result.netFlow },
     { Metric: "Date Range", Value: `${result.dateRange.from} to ${result.dateRange.to}` },
     ...result.categoryBreakdown.map((c) => ({
       Metric: c.category,
@@ -56,9 +54,7 @@ export async function exportPDF(result: AnalysisResult): Promise<void> {
     startY: 35,
     head: [["Metric", "Value"]],
     body: [
-      ["Total Income", `$${result.totalIncome.toLocaleString("en-AU", { minimumFractionDigits: 2 })}`],
       ["Total Expenses", `$${Math.abs(result.totalExpenses).toLocaleString("en-AU", { minimumFractionDigits: 2 })}`],
-      ["Net Flow", `$${result.netFlow.toLocaleString("en-AU", { minimumFractionDigits: 2 })}`],
       ["Transactions", `${result.transactions.length}`],
     ],
     theme: "grid",
@@ -126,29 +122,10 @@ export async function exportPDF(result: AnalysisResult): Promise<void> {
 
 // ── Encrypted export/import ──
 
-/** Derive an AES-GCM key from an export password */
-async function deriveExportKey(password: string, salt: Uint8Array): Promise<CryptoKey> {
-  const encoder = new TextEncoder();
-  const keyMaterial = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(password),
-    "PBKDF2",
-    false,
-    ["deriveKey"]
-  );
-  return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: salt.buffer as ArrayBuffer, iterations: 100000, hash: "SHA-256" },
-    keyMaterial,
-    { name: "AES-GCM", length: 256 },
-    false,
-    ["encrypt", "decrypt"]
-  );
-}
-
 /** Export analysis as password-encrypted .catto file */
 export async function exportEncrypted(result: AnalysisResult, password: string): Promise<void> {
   const salt = crypto.getRandomValues(new Uint8Array(16));
-  const key = await deriveExportKey(password, salt);
+  const key = await deriveAesKey(password, salt);
 
   const json = JSON.stringify({
     version: 1,
@@ -158,8 +135,7 @@ export async function exportEncrypted(result: AnalysisResult, password: string):
 
   const encrypted = await encrypt(json, key);
 
-  // Bundle: salt (hex) + ":" + encrypted payload
-  const saltHex = Array.from(salt).map((b) => b.toString(16).padStart(2, "0")).join("");
+  const saltHex = bytesToHex(salt);
   const blob = new Blob([saltHex + "|" + encrypted], { type: "application/octet-stream" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -179,7 +155,7 @@ export async function importEncrypted(file: File, password: string): Promise<Ana
   const encrypted = text.slice(separatorIdx + 1);
 
   const salt = Uint8Array.from(saltHex.match(/.{2}/g)!.map((h) => parseInt(h, 16)));
-  const key = await deriveExportKey(password, salt);
+  const key = await deriveAesKey(password, salt);
 
   try {
     const json = await decrypt(encrypted, key);

@@ -46,17 +46,6 @@ async function getRaw(key: string): Promise<string | null> {
   });
 }
 
-/** Delete a key from the store */
-async function deleteRaw(key: string): Promise<void> {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, "readwrite");
-    tx.objectStore(STORE_NAME).delete(key);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
 /** Clear all data from IndexedDB store */
 async function clearAll(): Promise<void> {
   const db = await openDB();
@@ -72,7 +61,7 @@ async function clearAll(): Promise<void> {
 
 /** Save encrypted data to IndexedDB */
 export async function secureSet<T>(key: string, data: T): Promise<void> {
-  const encKey = await getEncryptionKey();
+  const encKey = getEncryptionKey();
   const json = JSON.stringify(data);
 
   if (encKey) {
@@ -85,13 +74,14 @@ export async function secureSet<T>(key: string, data: T): Promise<void> {
     }
   }
 
-  // Unencrypted fallback (guest users)
-  localStorage.setItem(key, json);
+  // No encryption key — guest users don't get persistent storage
+  // Data stays in memory only (consistent with "gone when you close" promise)
+  return;
 }
 
 /** Read and decrypt data from IndexedDB */
 export async function secureGet<T>(key: string): Promise<T | null> {
-  const encKey = await getEncryptionKey();
+  const encKey = getEncryptionKey();
 
   if (encKey) {
     try {
@@ -115,23 +105,8 @@ export async function secureGet<T>(key: string): Promise<T | null> {
     }
   }
 
-  // Unencrypted fallback
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-/** Delete a key from secure storage */
-export async function secureDelete(key: string): Promise<void> {
-  try {
-    await deleteRaw(key);
-  } catch {
-    // IndexedDB might not be available
-  }
-  localStorage.removeItem(key);
+  // No encryption key — guest users have no persisted data
+  return null;
 }
 
 /** Wipe all secure storage */

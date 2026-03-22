@@ -59,51 +59,31 @@ const REIMBURSEMENT_PATTERNS = [
   /fast\s?transfer\s?from/i,
 ];
 
-// Real income → the ONLY things that count as income
-const REAL_INCOME_PATTERNS = [
-  /\bsalary\b|\bpayroll\b|\bwage\b/i,
-  /\binterest\b/i,
-  /\bdividend\b/i,
-  /\bbonus\s?interest\b|\bcredit\s?interest\b/i,
-];
-
 function classifyIncomeTransaction(description: string, isRefund?: boolean): { category: string; subcategory?: string } {
   const cleaned = description.trim();
 
-  // 1. Merchant refund on credit card (isRefund flag from PDF parser)
   if (isRefund) {
     return { category: "Refund" };
   }
 
-  // 2. Credit card payments received → Transfer: CC Payment
   if (CC_PAYMENT_PATTERNS.some((p) => p.test(cleaned))) {
     return { category: "Transfer", subcategory: "Credit Card Repayment" };
   }
 
-  // 3. Refund keywords on positive amounts
   if (REFUND_PATTERNS.some((p) => p.test(cleaned))) {
     return { category: "Refund" };
   }
 
-  // 4. Internal transfers between own accounts
   if (INTERNAL_TRANSFER_PATTERNS.some((p) => p.test(cleaned))) {
     return { category: "Transfer", subcategory: "Internal Transfer" };
   }
 
-  // 5. Reimbursements (friends paying back for shared expenses)
   if (REIMBURSEMENT_PATTERNS.some((p) => p.test(cleaned))) {
     return { category: "Reimbursement" };
   }
 
-  // 6. Real income (salary, interest, dividend)
-  if (REAL_INCOME_PATTERNS.some((p) => p.test(cleaned))) {
-    return { category: "Income" };
-  }
-
-  // 7. Anything else positive that doesn't match above → review as potential reimbursement/refund
-  //    For now, still count as Income to avoid hiding unknown positives.
-  //    The user can review these in the dashboard.
-  return { category: "Income" };
+  // Unclassified positive amounts — generic credit/inflow, not counted as spending
+  return { category: "Credit" };
 }
 
 function classifyTransactions(
@@ -161,25 +141,21 @@ function computeCategoryBreakdown(transactions: Transaction[]): CategoryBreakdow
 }
 
 function computeMonthlyData(transactions: Transaction[]): MonthlyData[] {
-  const map = new Map<string, { income: number; expenses: number }>();
+  const map = new Map<string, number>();
 
   for (const t of transactions) {
-    const month = t.date.slice(0, 7); // YYYY-MM
-    const existing = map.get(month) || { income: 0, expenses: 0 };
-    if (t.type === "income" && t.category === "Income") {
-      existing.income += t.amount;
-    } else if (t.type === "expense" && !isExcludedTransfer(t)) {
-      existing.expenses += Math.abs(t.amount);
+    const month = t.date.slice(0, 7);
+    if (t.type === "expense" && !isExcludedTransfer(t)) {
+      map.set(month, (map.get(month) || 0) + Math.abs(t.amount));
     }
-    map.set(month, existing);
   }
 
   return Array.from(map.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, data]) => ({
+    .map(([month, expenses]) => ({
       month,
-      income: Math.round(data.income * 100) / 100,
-      expenses: Math.round(data.expenses * 100) / 100,
+      income: 0,
+      expenses: Math.round(expenses * 100) / 100,
     }));
 }
 
@@ -241,13 +217,13 @@ export function analyze(
   aiCategories?: Record<number, string>,
 ): AnalysisResult {
   const transactions = classifyTransactions(raw, aiCategories);
+  return buildResultFromClassified(transactions);
+}
 
-  // Real Income = auto-detected (anything not classified as internal transfer)
-  const totalIncome = transactions
-    .filter((t) => t.type === "income" && t.category === "Income")
-    .reduce((sum, t) => sum + t.amount, 0);
+/** Build an AnalysisResult from already-classified Transaction[] (no re-categorization) */
+export function buildResultFromClassified(transactions: Transaction[]): AnalysisResult {
+  const totalIncome = 0; // Income display removed — app is expense-focused
 
-  // Total Expenses = all expenses minus excluded transfers (CC repayments, internal moves)
   const totalExpenses = transactions
     .filter((t) => t.type === "expense" && !isExcludedTransfer(t))
     .reduce((sum, t) => sum + Math.abs(t.amount), 0);
@@ -262,17 +238,10 @@ export function analyze(
   const topCategory = categoryBreakdown[0]?.category || "N/A";
   const lowestCategory = categoryBreakdown[categoryBreakdown.length - 1]?.category || "N/A";
 
-  // Build anomaly notes — show what was auto-detected and why
-  const anomalyNotes: string[] = [];
-
-  // Expense-side excluded transfers (CC repayments, internal moves between accounts)
   const expenseTransfers = transactions.filter((t) => t.type === "expense" && isExcludedTransfer(t));
-  // Income-side excluded transfers (savings returns, card payments received, etc.)
   const incomeTransfers = transactions.filter((t) => t.type === "income" && t.category === "Transfer");
-
   const allExcluded = [...expenseTransfers, ...incomeTransfers];
 
-  // Build structured excluded transfer groups for toggle UI
   const excludedTransferGroups: import("./types").ExcludedTransferGroup[] = [];
   if (allExcluded.length > 0) {
     const bySub = new Map<string, import("./types").ExcludedTransferGroup>();
@@ -289,7 +258,6 @@ export function analyze(
       bySub.set(sub, entry);
     }
     for (const group of bySub.values()) {
-      // Sort transactions by amount descending
       group.transactions.sort((a, b) => b.amount - a.amount);
       excludedTransferGroups.push(group);
     }
@@ -310,9 +278,29 @@ export function analyze(
       from: dates[0] || "",
       to: dates[dates.length - 1] || "",
     },
-    anomalyNotes,
+    anomalyNotes: [],
     excludedTransferGroups,
   };
+}
+
+/** Partition already-classified transactions by month and build per-month results */
+export function buildMonthlyResults(transactions: Transaction[]): MonthlyResult[] {
+  const monthMap = new Map<string, Transaction[]>();
+  for (const t of transactions) {
+    const month = t.date.slice(0, 7); // YYYY-MM
+    if (!month || month.length < 7) continue;
+    const list = monthMap.get(month) || [];
+    list.push(t);
+    monthMap.set(month, list);
+  }
+
+  return Array.from(monthMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, txns]) => {
+      const d = new Date(month + "-01");
+      const label = d.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+      return { month, label, result: buildResultFromClassified(txns) };
+    });
 }
 
 /** Split transactions by month and analyze each separately + overall */
@@ -321,28 +309,6 @@ export function analyzeMultiMonth(
   aiCategories?: Record<number, string>,
 ): MultiMonthAnalysis {
   const overall = analyze(raw, aiCategories);
-
-  // Group raw transactions by YYYY-MM
-  const monthMap = new Map<string, RawTransaction[]>();
-  for (const t of raw) {
-    const month = t.date.slice(0, 7); // YYYY-MM
-    if (!month || month.length < 7) continue;
-    const list = monthMap.get(month) || [];
-    list.push(t);
-    monthMap.set(month, list);
-  }
-
-  const months: MonthlyResult[] = Array.from(monthMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, txns]) => {
-      const d = new Date(month + "-01");
-      const label = d.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
-      return {
-        month,
-        label,
-        result: analyze(txns, aiCategories),
-      };
-    });
-
+  const months = buildMonthlyResults(overall.transactions);
   return { overall, months };
 }

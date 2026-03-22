@@ -109,6 +109,7 @@ export function maskDescription(description: string): string {
   masked = masked.replace(PATTERNS.refNumber, "[REF]");
   masked = masked.replace(PATTERNS.sortCode, "[CODE]");
   masked = masked.replace(PATTERNS.bsb, "[BSB]");
+  masked = masked.replace(PATTERNS.zip, "[ZIP]");
   masked = masked.replace(PATTERNS.longDigits, "[ID]");
 
   // --- Merchant-level masking ---
@@ -158,17 +159,13 @@ export function maskTransactionsForAI(
  * Contains NO individual transaction details — only category totals.
  */
 export function createSafeSummary(analysis: {
-  totalIncome: number;
   totalExpenses: number;
-  netFlow: number;
   categoryBreakdown: Array<{ category: string; total: number; count: number; percentage: number }>;
-  monthlyData: Array<{ month: string; income: number; expenses: number }>;
+  monthlyData: Array<{ month: string; expenses: number }>;
   recurring: Array<{ amount: number; occurrences: number; category: string }>;
 }): string {
   const lines: string[] = [
-    `Total Income: $${analysis.totalIncome.toLocaleString()}`,
     `Total Expenses: $${analysis.totalExpenses.toLocaleString()}`,
-    `Net: $${analysis.netFlow.toLocaleString()}`,
     "",
     "Expense Breakdown:",
     ...analysis.categoryBreakdown.map(
@@ -177,7 +174,7 @@ export function createSafeSummary(analysis: {
     "",
     "Monthly Trend:",
     ...analysis.monthlyData.map(
-      (m) => `  ${m.month}: income $${m.income.toLocaleString()}, expenses $${m.expenses.toLocaleString()}`
+      (m) => `  ${m.month}: expenses $${m.expenses.toLocaleString()}`
     ),
   ];
 

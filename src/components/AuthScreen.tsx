@@ -10,6 +10,17 @@ interface AuthScreenProps {
   onSkip: () => void;
 }
 
+function getPasswordStrength(password: string): number {
+  if (password.length < 8) return 0;
+  if (password.length < 10) return 1;
+  if (/[A-Z]/.test(password) && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password)) return 4;
+  if (/[A-Z]/.test(password) && /[0-9]/.test(password)) return 3;
+  return 2;
+}
+
+const STRENGTH_COLORS = ["bg-[var(--catto-red-400)]", "bg-[var(--catto-orange-400)]", "bg-[var(--catto-blue-400)]", "bg-[var(--catto-green-500)]"];
+const STRENGTH_LABELS = ["Too short — minimum 8 characters", "Weak — try longer", "Fair — add uppercase & numbers", "Good — add symbols for stronger", "Strong"];
+
 export default function AuthScreen({ onAuth, onSkip }: AuthScreenProps) {
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
@@ -40,6 +51,8 @@ export default function AuthScreen({ onAuth, onSkip }: AuthScreenProps) {
     }
   };
 
+  const strength = getPasswordStrength(password);
+
   return (
     <div className="min-h-screen bg-[var(--background)] font-[family-name:var(--font-jakarta)] flex flex-col">
       {/* Top Bar */}
@@ -52,7 +65,7 @@ export default function AuthScreen({ onAuth, onSkip }: AuthScreenProps) {
             <span className="text-lg font-extrabold tracking-tight text-[var(--catto-slate-900)]">CattoExpense</span>
           </div>
           <div className="flex items-center gap-2 text-[var(--catto-green-600)]">
-            <ShieldCheck className="w-4 h-4" />
+            <ShieldCheck className="w-4 h-4" aria-hidden="true" />
             <span className="text-sm font-bold hidden sm:inline">100% Local Processing</span>
           </div>
         </div>
@@ -78,84 +91,91 @@ export default function AuthScreen({ onAuth, onSkip }: AuthScreenProps) {
           {/* Form Card */}
           <div className="bg-white rounded-xl border border-[var(--catto-slate-100)] shadow-xl p-6 space-y-4">
             {/* Mode Toggle */}
-            <div className="flex rounded-full bg-[var(--catto-slate-50)] p-1">
+            <div role="tablist" aria-label="Account mode" className="flex rounded-full bg-[var(--catto-slate-50)] p-1">
               <button
+                role="tab"
                 onClick={() => { setMode("login"); setError(null); }}
-                aria-pressed={mode === "login"}
+                aria-selected={mode === "login"}
                 className={`flex-1 flex items-center justify-center gap-1.5 min-h-[44px] rounded-full text-sm font-bold transition-all ${
                   mode === "login"
                     ? "bg-white shadow-sm text-[var(--catto-slate-900)]"
                     : "text-[var(--catto-slate-400)] hover:text-[var(--catto-slate-600)]"
                 }`}
               >
-                <LogIn className="w-3.5 h-3.5" /> Sign In
+                <LogIn className="w-3.5 h-3.5" aria-hidden="true" /> Sign In
               </button>
               <button
+                role="tab"
                 onClick={() => { setMode("register"); setError(null); }}
-                aria-pressed={mode === "register"}
+                aria-selected={mode === "register"}
                 className={`flex-1 flex items-center justify-center gap-1.5 min-h-[44px] rounded-full text-sm font-bold transition-all ${
                   mode === "register"
                     ? "bg-white shadow-sm text-[var(--catto-slate-900)]"
                     : "text-[var(--catto-slate-400)] hover:text-[var(--catto-slate-600)]"
                 }`}
               >
-                <UserPlus className="w-3.5 h-3.5" /> Sign Up
+                <UserPlus className="w-3.5 h-3.5" aria-hidden="true" /> Sign Up
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-[var(--catto-slate-700)] mb-1">Username</label>
+                <label htmlFor="auth-username" className="block text-sm font-medium text-[var(--catto-slate-700)] mb-1">Username</label>
                 <input
+                  id="auth-username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="your_username"
                   required
+                  autoComplete="username"
                   className="w-full rounded-lg border border-[var(--catto-primary-20)] px-3 py-2.5 text-sm text-[var(--catto-slate-800)] focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-[var(--catto-primary)] outline-none"
                 />
               </div>
 
               {mode === "register" && (
                 <div>
-                  <label className="block text-sm font-medium text-[var(--catto-slate-700)] mb-1">Display Name</label>
+                  <label htmlFor="auth-displayname" className="block text-sm font-medium text-[var(--catto-slate-700)] mb-1">Display Name</label>
                   <input
+                    id="auth-displayname"
                     type="text"
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     placeholder="Your Name 🐱"
                     required
+                    autoComplete="name"
                     className="w-full rounded-lg border border-[var(--catto-primary-20)] px-3 py-2.5 text-sm text-[var(--catto-slate-800)] focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-[var(--catto-primary)] outline-none"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-[var(--catto-slate-700)] mb-1">Password</label>
+                <label htmlFor="auth-password" className="block text-sm font-medium text-[var(--catto-slate-700)] mb-1">Password</label>
                 <input
+                  id="auth-password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
                   minLength={8}
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  aria-describedby="password-hint"
                   className="w-full rounded-lg border border-[var(--catto-primary-20)] px-3 py-2.5 text-sm text-[var(--catto-slate-800)] focus:ring-2 focus:ring-[var(--catto-primary)] focus:border-[var(--catto-primary)] outline-none"
                 />
                 {mode === "register" && (
-                  <div className="mt-1.5">
+                  <div id="password-hint" className="mt-1.5">
                     {password.length === 0 ? (
                       <p className="text-xs text-[var(--catto-slate-400)]">Minimum 8 characters</p>
                     ) : (
                       <div className="space-y-1">
-                        <div className="flex gap-1">
-                          {[1, 2, 3, 4].map((i) => {
-                            const strength = password.length < 8 ? 0 : password.length < 10 ? 1 : /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password) ? 4 : /[A-Z]/.test(password) && /[0-9]/.test(password) ? 3 : 2;
-                            const colors = ["bg-[var(--catto-red-400)]", "bg-[var(--catto-orange-400)]", "bg-[var(--catto-blue-400)]", "bg-[var(--catto-green-500)]"];
-                            return <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= strength ? colors[strength - 1] : "bg-[var(--catto-slate-200)]"}`} />;
-                          })}
+                        <div className="flex gap-1" role="meter" aria-label="Password strength" aria-valuenow={strength} aria-valuemin={0} aria-valuemax={4}>
+                          {[1, 2, 3, 4].map((i) => (
+                            <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= strength ? STRENGTH_COLORS[strength - 1] : "bg-[var(--catto-slate-200)]"}`} />
+                          ))}
                         </div>
                         <p className="text-xs text-[var(--catto-slate-400)]">
-                          {password.length < 8 ? "Too short — minimum 8 characters" : password.length < 10 ? "Weak — try longer" : /[A-Z]/.test(password) && /[0-9]/.test(password) && /[^A-Za-z0-9]/.test(password) ? "Strong" : /[A-Z]/.test(password) && /[0-9]/.test(password) ? "Good — add symbols for stronger" : "Fair — add uppercase & numbers"}
+                          {STRENGTH_LABELS[strength]}
                         </p>
                       </div>
                     )}
@@ -164,7 +184,7 @@ export default function AuthScreen({ onAuth, onSkip }: AuthScreenProps) {
               </div>
 
               {error && (
-                <div className="text-sm text-[var(--catto-red-600)] bg-[var(--catto-red-50)] rounded-xl px-4 py-2 border border-[var(--catto-red-100)]">
+                <div role="alert" className="text-sm text-[var(--catto-red-600)] bg-[var(--catto-red-50)] rounded-xl px-4 py-2 border border-[var(--catto-red-100)]">
                   {error}
                 </div>
               )}
@@ -176,12 +196,12 @@ export default function AuthScreen({ onAuth, onSkip }: AuthScreenProps) {
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                     {mode === "login" ? "Signing in..." : "Creating account..."}
                   </>
                 ) : (
                   <>
-                    {mode === "login" ? <LogIn className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                    {mode === "login" ? <LogIn className="w-4 h-4" aria-hidden="true" /> : <UserPlus className="w-4 h-4" aria-hidden="true" />}
                     {mode === "login" ? "Sign In" : "Create Account"}
                   </>
                 )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, TrendingDown, ArrowDownUp, Hash, DollarSign, Calendar } from "lucide-react";
+import { TrendingDown, Hash, DollarSign, Calendar, ArrowUpDown } from "lucide-react";
 import type { AnalysisResult } from "@/lib/types";
 
 interface SummaryCardsProps {
@@ -17,7 +17,6 @@ function ChangeIndicator({ current, previous, invertColor }: { current: number; 
   const pct = pctChange(current, previous);
   if (pct === null || Math.abs(pct) < 1) return null;
   const up = pct > 0;
-  // For expenses, up = bad (orange), down = good (green). For income/net, up = good, down = bad.
   const isPositive = invertColor ? !up : up;
   return (
     <span className={`inline-flex items-center gap-0.5 text-xs font-bold ${isPositive ? "text-[var(--catto-green-600)]" : "text-[var(--catto-orange-600)]"}`}>
@@ -31,16 +30,15 @@ export default function SummaryCards({ result, previousResult }: SummaryCardsPro
     ? result.categoryBreakdown[0].category
     : "N/A";
 
+  const expenseTxns = result.transactions.filter((t) => t.type === "expense");
+  const avgTransaction = expenseTxns.length > 0
+    ? expenseTxns.reduce((s, t) => s + Math.abs(t.amount), 0) / expenseTxns.length
+    : 0;
+  const largestExpense = expenseTxns.length > 0
+    ? Math.max(...expenseTxns.map((t) => Math.abs(t.amount)))
+    : 0;
+
   const cards = [
-    {
-      label: "Total Income",
-      value: `$${result.totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-      icon: TrendingUp,
-      iconBg: "bg-[var(--catto-green-100)]",
-      iconColor: "text-[var(--catto-green-600)]",
-      valueColor: "text-[var(--catto-green-600)]",
-      comparison: previousResult ? <ChangeIndicator current={result.totalIncome} previous={previousResult.totalIncome} /> : null,
-    },
     {
       label: "Total Expenses",
       value: `$${result.totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
@@ -51,13 +49,22 @@ export default function SummaryCards({ result, previousResult }: SummaryCardsPro
       comparison: previousResult ? <ChangeIndicator current={result.totalExpenses} previous={previousResult.totalExpenses} invertColor /> : null,
     },
     {
-      label: "Net Flow",
-      value: `$${result.netFlow.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-      icon: ArrowDownUp,
+      label: "Avg Transaction",
+      value: `$${avgTransaction.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
+      icon: ArrowUpDown,
       iconBg: "bg-[var(--catto-blue-100)]",
       iconColor: "text-[var(--catto-blue-600)]",
-      valueColor: result.netFlow >= 0 ? "text-[var(--catto-green-600)]" : "text-[var(--catto-red-500)]",
-      comparison: previousResult ? <ChangeIndicator current={result.netFlow} previous={previousResult.netFlow} /> : null,
+      valueColor: "text-[var(--catto-blue-600)]",
+      comparison: null,
+    },
+    {
+      label: "Largest Expense",
+      value: `$${largestExpense.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+      icon: DollarSign,
+      iconBg: "bg-[var(--catto-red-100)]",
+      iconColor: "text-[var(--catto-red-500)]",
+      valueColor: "text-[var(--catto-red-500)]",
+      comparison: null,
     },
     {
       label: "Transactions",

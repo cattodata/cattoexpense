@@ -15,7 +15,7 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import type { CategoryBreakdown, MonthlyData, Transaction } from "@/lib/types";
+import type { CategoryBreakdown, MonthlyData } from "@/lib/types";
 import { CATEGORY_COLORS } from "@/lib/categorizer";
 import { getCategoryEmoji } from "@/lib/category-emoji";
 
@@ -42,27 +42,43 @@ function getCategoryColor(category: string, index: number): string {
   return CATEGORY_COLORS[category] || FALLBACK_COLORS[index % FALLBACK_COLORS.length];
 }
 
+export const SUB_COLORS = ["#60a5fa","#f472b6","#34d399","#fbbf24","#a78bfa","#fb923c","#22d3ee","#f87171","#4ade80","#e879f9"];
+
+const TOOLTIP_STYLE = {
+  background: "white",
+  border: "1px solid #e2e8f0",
+  borderRadius: "12px",
+  fontSize: "13px",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+} as const;
+
 function formatCurrency(value: number): string {
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-/* Custom label for donut chart — shows "emoji Category XX%" */
+/* Radial label for donut charts */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function renderCustomLabel(props: any) {
-  const { cx, cy, midAngle, outerRadius, name, percent } = props;
-  const RADIAN = Math.PI / 180;
-  const radius = (outerRadius || 100) + 22;
-  const x = (cx || 0) + radius * Math.cos(-(midAngle || 0) * RADIAN);
-  const y = (cy || 0) + radius * Math.sin(-(midAngle || 0) * RADIAN);
-  const pct = Math.round((percent || 0) * 100);
-  if (pct < 3) return null;
-  const emoji = getCategoryEmoji(name);
-  return (
-    <text x={x} y={y} fill="#64748b" textAnchor={x > (cx || 0) ? "start" : "end"} dominantBaseline="central" fontSize={11} fontWeight={600}>
-      {emoji} {name} {pct}%
-    </text>
-  );
+function makeRadialLabel(opts: { offset?: number; minPct?: number; showEmoji?: boolean }) {
+  const { offset = 22, minPct = 3, showEmoji = false } = opts;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (props: any) => {
+    const { cx, cy, midAngle, outerRadius, name, percent } = props;
+    const RADIAN = Math.PI / 180;
+    const radius = (outerRadius || 100) + offset;
+    const x = (cx || 0) + radius * Math.cos(-(midAngle || 0) * RADIAN);
+    const y = (cy || 0) + radius * Math.sin(-(midAngle || 0) * RADIAN);
+    const pct = Math.round((percent || 0) * 100);
+    if (pct < minPct) return null;
+    const prefix = showEmoji ? `${getCategoryEmoji(name)} ` : "";
+    return (
+      <text x={x} y={y} fill="#64748b" textAnchor={x > (cx || 0) ? "start" : "end"} dominantBaseline="central" fontSize={11} fontWeight={600}>
+        {prefix}{name} {pct}%
+      </text>
+    );
+  };
 }
+
+const renderCustomLabel = makeRadialLabel({ offset: 22, minPct: 3, showEmoji: true });
 
 /* ─── Expense Breakdown (Donut) ─── */
 export function ExpenseBreakdownChart({
@@ -88,7 +104,7 @@ export function ExpenseBreakdownChart({
   const total = pieData.reduce((s, e) => s + e.value, 0);
 
   return (
-    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]" role="img" aria-label="Expense breakdown chart">
+    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]" aria-label="Expense breakdown chart">
       <h2 className="text-xl font-bold text-[var(--catto-slate-900)] mb-4 sm:mb-6">Expense Breakdown</h2>
       <ResponsiveContainer width="100%" height={isMobile ? 220 : 320}>
         <PieChart>
@@ -111,13 +127,7 @@ export function ExpenseBreakdownChart({
           </Pie>
           <Tooltip
             formatter={(value) => formatCurrency(Number(value))}
-            contentStyle={{
-              background: "white",
-              border: "1px solid #e2e8f0",
-              borderRadius: "12px",
-              fontSize: "13px",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-            }}
+            contentStyle={TOOLTIP_STYLE}
           />
         </PieChart>
       </ResponsiveContainer>
@@ -170,7 +180,7 @@ export function CategoryBarChart({
   }));
 
   return (
-    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]" role="img" aria-label="Spending per category chart">
+    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]" aria-label="Spending per category chart">
       <h2 className="text-xl font-bold text-[var(--catto-slate-900)] mb-4 sm:mb-6">Spending per Category</h2>
       <ResponsiveContainer width="100%" height={isMobile ? 260 : 320}>
         <BarChart data={barData} margin={{ bottom: isMobile ? 10 : 90 }}>
@@ -193,7 +203,7 @@ export function CategoryBarChart({
               const cat = entry?.fullName || String(_label);
               return `${getCategoryEmoji(cat)} ${cat}`;
             }}
-            contentStyle={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "13px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+            contentStyle={TOOLTIP_STYLE}
           />
           <Bar dataKey="total" radius={[6, 6, 0, 0]} onClick={(_data, index) => onCategoryClick?.(barData[index].fullName)} className="cursor-pointer">
             {barData.map((entry, index) => (
@@ -208,21 +218,7 @@ export function CategoryBarChart({
 
 /* ─── Subcategory Donut Chart ─── */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function renderSubcategoryLabel(props: any) {
-  const { cx, cy, midAngle, outerRadius, name, percent } = props;
-  const RADIAN = Math.PI / 180;
-  const radius = (outerRadius || 80) + 18;
-  const x = (cx || 0) + radius * Math.cos(-(midAngle || 0) * RADIAN);
-  const y = (cy || 0) + radius * Math.sin(-(midAngle || 0) * RADIAN);
-  const pct = Math.round((percent || 0) * 100);
-  if (pct < 4) return null;
-  return (
-    <text x={x} y={y} fill="#64748b" textAnchor={x > (cx || 0) ? "start" : "end"} dominantBaseline="central" fontSize={11} fontWeight={600}>
-      {name} {pct}%
-    </text>
-  );
-}
+const renderSubcategoryLabel = makeRadialLabel({ offset: 18, minPct: 4 });
 
 export function SubcategoryDonutChart({
   subcategories,
@@ -242,7 +238,6 @@ export function SubcategoryDonutChart({
       </div>
     );
   }
-  const SUB_COLORS = ["#60a5fa","#f472b6","#34d399","#fbbf24","#a78bfa","#fb923c","#22d3ee","#f87171","#4ade80","#e879f9"];
   const pieData = subcategories.map((s, i) => ({
     name: s.name,
     value: s.total,
@@ -250,7 +245,7 @@ export function SubcategoryDonutChart({
   }));
 
   return (
-    <div role="img" aria-label={`${categoryName} subcategory breakdown chart`}>
+    <div aria-label={`${categoryName} subcategory breakdown chart`}>
       <h4 className="text-sm font-bold text-[var(--catto-slate-700)] mb-3">
         {getCategoryEmoji(categoryName)} Subcategory Breakdown
       </h4>
@@ -275,7 +270,7 @@ export function SubcategoryDonutChart({
           </Pie>
           <Tooltip
             formatter={(value) => formatCurrency(Number(value))}
-            contentStyle={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "13px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+            contentStyle={TOOLTIP_STYLE}
           />
         </PieChart>
       </ResponsiveContainer>
@@ -293,15 +288,12 @@ export function SubcategoryDonutChart({
   );
 }
 
-/* ─── Income vs Expenses Over Time ─── */
-export function IncomeExpensesChart({
+/* ─── Monthly Spending Trend ─── */
+
+export function SpendingTrendChart({
   monthlyData,
-  totalIncome,
-  incomeTransactions,
 }: {
   monthlyData: MonthlyData[];
-  totalIncome: number;
-  incomeTransactions: Transaction[];
 }) {
   const timelineData = monthlyData.map((m) => ({
     ...m,
@@ -309,101 +301,34 @@ export function IncomeExpensesChart({
   }));
 
   return (
-    <>
-      <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]" role="img" aria-label="Income vs expenses over time chart">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4 sm:mb-6">
-          <h2 className="text-lg sm:text-xl font-bold text-[var(--catto-slate-900)]">Income vs Expenses Over Time 📊</h2>
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-[#34d399]" />
-              <span className="text-[var(--catto-slate-500)] font-medium">Income</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-[#f87171]" />
-              <span className="text-[var(--catto-slate-500)] font-medium">Expenses</span>
-            </div>
-          </div>
-        </div>
-        <ResponsiveContainer width="100%" height={300}>
-          {timelineData.length <= 1 ? (
-            <BarChart data={timelineData} margin={{ left: 10, right: 10, top: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="monthLabel" tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={{ stroke: "#e2e8f0" }} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={formatCurrency} axisLine={false} tickLine={false} width={65} />
-              <Tooltip formatter={(value) => formatCurrency(Number(value))} contentStyle={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "13px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
-              <Bar dataKey="income" name="Income" fill="#34d399" radius={[6, 6, 0, 0]} barSize={60} />
-              <Bar dataKey="expenses" name="Expenses" fill="#f87171" radius={[6, 6, 0, 0]} barSize={60} />
-            </BarChart>
-          ) : (
-            <AreaChart data={timelineData} margin={{ left: 10, right: 10, top: 5 }}>
-              <defs>
-                <linearGradient id="incomeGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#34d399" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#34d399" stopOpacity={0.02} />
-                </linearGradient>
-                <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#f87171" stopOpacity={0.25} />
-                  <stop offset="100%" stopColor="#f87171" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
-              <XAxis dataKey="monthLabel" tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={{ stroke: "#e2e8f0" }} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={formatCurrency} axisLine={false} tickLine={false} width={65} />
-              <Tooltip formatter={(value) => formatCurrency(Number(value))} contentStyle={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "13px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
-              <Area type="monotone" dataKey="income" name="Income" stroke="#34d399" fill="url(#incomeGrad)" strokeWidth={2.5} dot={{ r: 4, fill: "#34d399", stroke: "white", strokeWidth: 2 }} activeDot={{ r: 6, fill: "#34d399", stroke: "white", strokeWidth: 2 }} />
-              <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#f87171" fill="url(#expenseGrad)" strokeWidth={2.5} dot={{ r: 4, fill: "#f87171", stroke: "white", strokeWidth: 2 }} activeDot={{ r: 6, fill: "#f87171", stroke: "white", strokeWidth: 2 }} />
-            </AreaChart>
-          )}
-        </ResponsiveContainer>
-      </div>
-
-      {/* Income Sources */}
-      {totalIncome > 0 && (() => {
-        const isMobile = typeof window !== "undefined" && window.innerWidth < 640;
-        const sourceMap = new Map<string, number>();
-        for (const t of incomeTransactions) {
-          const label = t.subcategory || t.category || "Other Income";
-          sourceMap.set(label, (sourceMap.get(label) || 0) + Math.abs(t.amount));
-        }
-        const incomeData = Array.from(sourceMap.entries())
-          .map(([name, value]) => ({ name, value }))
-          .sort((a, b) => b.value - a.value);
-        const INCOME_COLORS = ["#34d399", "#6ee7b7", "#a7f3d0", "#4ade80", "#86efac", "#bbf7d0"];
-
-        return (
-          <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)] mt-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4 sm:mb-6">
-              <h2 className="text-lg sm:text-xl font-bold text-[var(--catto-slate-900)]">Income Sources 💰</h2>
-              <span className="text-lg font-black text-[var(--catto-green-600)]">
-                ${totalIncome.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ResponsiveContainer width="100%" height={240}>
-                <PieChart>
-                  <Pie data={incomeData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value" label={isMobile ? false : ({ name, percent }) => { const pct = Math.round((percent || 0) * 100); return pct >= 3 ? `${name} ${pct}%` : null; }} labelLine={false}>
-                    {incomeData.map((_entry, index) => (
-                      <Cell key={index} fill={INCOME_COLORS[index % INCOME_COLORS.length]} stroke="white" strokeWidth={2} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(Number(value))} contentStyle={{ background: "white", border: "1px solid #e2e8f0", borderRadius: "12px", fontSize: "13px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex flex-col justify-center gap-3">
-                {incomeData.map((item, i) => (
-                  <div key={item.name} className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: INCOME_COLORS[i % INCOME_COLORS.length] }} />
-                    <span className="text-sm font-medium text-[var(--catto-slate-700)] flex-1 truncate">{item.name}</span>
-                    <span className="text-sm font-bold text-[var(--catto-green-600)]">{formatCurrency(item.value)}</span>
-                    <span className="text-xs text-[var(--catto-slate-400)]">{totalIncome > 0 ? Math.round((item.value / totalIncome) * 100) : 0}%</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-    </>
+    <div className="bg-white p-4 sm:p-6 md:p-8 rounded-xl shadow-sm border border-[var(--catto-slate-100)]" aria-label="Monthly spending trend chart">
+      <h2 className="text-lg sm:text-xl font-bold text-[var(--catto-slate-900)] mb-4 sm:mb-6">Monthly Spending Trend 📊</h2>
+      <ResponsiveContainer width="100%" height={300}>
+        {timelineData.length <= 1 ? (
+          <BarChart data={timelineData} margin={{ left: 10, right: 10, top: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+            <XAxis dataKey="monthLabel" tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={{ stroke: "#e2e8f0" }} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={formatCurrency} axisLine={false} tickLine={false} width={65} />
+            <Tooltip formatter={(value) => formatCurrency(Number(value))} contentStyle={TOOLTIP_STYLE} />
+            <Bar dataKey="expenses" name="Expenses" fill="#f87171" radius={[6, 6, 0, 0]} barSize={60} />
+          </BarChart>
+        ) : (
+          <AreaChart data={timelineData} margin={{ left: 10, right: 10, top: 5 }}>
+            <defs>
+              <linearGradient id="expenseGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f87171" stopOpacity={0.25} />
+                <stop offset="100%" stopColor="#f87171" stopOpacity={0.02} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+            <XAxis dataKey="monthLabel" tick={{ fontSize: 12, fill: "#94a3b8" }} axisLine={{ stroke: "#e2e8f0" }} tickLine={false} />
+            <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={formatCurrency} axisLine={false} tickLine={false} width={65} />
+            <Tooltip formatter={(value) => formatCurrency(Number(value))} contentStyle={TOOLTIP_STYLE} />
+            <Area type="monotone" dataKey="expenses" name="Expenses" stroke="#f87171" fill="url(#expenseGrad)" strokeWidth={2.5} dot={{ r: 4, fill: "#f87171", stroke: "white", strokeWidth: 2 }} activeDot={{ r: 6, fill: "#f87171", stroke: "white", strokeWidth: 2 }} />
+          </AreaChart>
+        )}
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -411,16 +336,14 @@ export function IncomeExpensesChart({
 interface ChartsProps {
   categoryBreakdown: CategoryBreakdown[];
   monthlyData: MonthlyData[];
-  totalIncome: number;
-  incomeTransactions: Transaction[];
   onCategoryClick?: (category: string) => void;
 }
 
-export default function Charts({ categoryBreakdown, monthlyData, totalIncome, incomeTransactions, onCategoryClick }: ChartsProps) {
+export default function Charts({ categoryBreakdown, monthlyData, onCategoryClick }: ChartsProps) {
   return (
     <div className="space-y-6">
       <ExpenseBreakdownChart categoryBreakdown={categoryBreakdown} onCategoryClick={onCategoryClick} />
-      <IncomeExpensesChart monthlyData={monthlyData} totalIncome={totalIncome} incomeTransactions={incomeTransactions} />
+      <SpendingTrendChart monthlyData={monthlyData} />
     </div>
   );
 }

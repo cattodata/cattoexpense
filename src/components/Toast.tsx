@@ -56,18 +56,26 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast: addToast }}>
       {children}
-      {/* Toast container */}
+      {/* Toast containers — separate aria-live regions for screen readers */}
       <div
         className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 sm:left-auto z-50 flex flex-col gap-2 sm:max-w-sm"
-        role="log"
-        aria-live={toasts.some((t) => t.type === "error") ? "assertive" : "polite"}
       >
-        {toasts.map((t) => {
-          const Icon = ICONS[t.type];
-          return (
-            <ToastItem key={t.id} toast={t} Icon={Icon} onClose={() => removeToast(t.id)} />
-          );
-        })}
+        <div role="log" aria-live="assertive">
+          {toasts.filter((t) => t.type === "error").map((t) => {
+            const Icon = ICONS[t.type];
+            return (
+              <ToastItem key={t.id} toast={t} Icon={Icon} onClose={() => removeToast(t.id)} />
+            );
+          })}
+        </div>
+        <div role="log" aria-live="polite">
+          {toasts.filter((t) => t.type !== "error").map((t) => {
+            const Icon = ICONS[t.type];
+            return (
+              <ToastItem key={t.id} toast={t} Icon={Icon} onClose={() => removeToast(t.id)} />
+            );
+          })}
+        </div>
       </div>
     </ToastContext.Provider>
   );

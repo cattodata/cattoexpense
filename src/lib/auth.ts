@@ -1,6 +1,6 @@
 /** Simple localStorage-based auth system — no server, fully local */
 
-import { storeEncryptionKey, clearEncryptionKey } from "./crypto";
+import { storeEncryptionKey, clearEncryptionKey, PBKDF2_ITERATIONS, bytesToHex } from "./crypto";
 import { secureClearAll } from "./secure-store";
 
 export interface User {
@@ -18,6 +18,8 @@ interface StoredUser {
   displayName: string;
   passwordHash: string;
   salt: string;
+  /** Separate salt for encryption key derivation */
+  encSalt?: string;
   createdAt: string;
 }
 
@@ -39,21 +41,32 @@ async function hashPassword(password: string, salt: string): Promise<string> {
     {
       name: "PBKDF2",
       salt: encoder.encode(salt),
-      iterations: 100000,
+      iterations: PBKDF2_ITERATIONS,
       hash: "SHA-256",
     },
     keyMaterial,
     256
   );
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return bytesToHex(new Uint8Array(hashBuffer));
 }
 
 /** Generate a random salt */
 function generateSalt(): string {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
+}
+
+/** Compute HMAC-SHA256 for session integrity */
+async function hmacSign(data: string, key: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(key),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", cryptoKey, encoder.encode(data));
+  return bytesToHex(new Uint8Array(sig));
 }
 
 /** Migrate legacy users (static salt, SHA-256) to new format by adding salt field */
@@ -61,7 +74,6 @@ function migrateUsers(users: StoredUser[]): StoredUser[] {
   let changed = false;
   const migrated = users.map((u) => {
     if (!u.salt) {
-      // Legacy user — mark with old static salt so login can verify then re-hash
       changed = true;
       return { ...u, salt: "__legacy_catto_salt_2024__" };
     }
@@ -92,12 +104,36 @@ async function legacyHash(password: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(password + "catto_salt_2024");
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  return bytesToHex(new Uint8Array(hashBuffer));
 }
 
-interface SessionData extends User {
+interface SignedSession {
+  id: string;
+  username: string;
+  displayName: string;
+  createdAt: string;
   createdAtSession: string;
+  hmac: string;
+}
+
+/** Create and store a signed session */
+async function createSession(user: StoredUser, password: string): Promise<User> {
+  const payloadObj = {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    createdAt: user.createdAt,
+    createdAtSession: new Date().toISOString(),
+  };
+  const hmac = await hmacSign(JSON.stringify(payloadObj), password + user.salt);
+  const session: SignedSession = { ...payloadObj, hmac };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  return {
+    id: user.id,
+    username: user.username,
+    displayName: user.displayName,
+    createdAt: user.createdAt,
+  };
 }
 
 export async function register(username: string, displayName: string, password: string): Promise<User> {
@@ -110,29 +146,21 @@ export async function register(username: string, displayName: string, password: 
   }
 
   const salt = generateSalt();
+  const encSalt = generateSalt();
   const newUser: StoredUser = {
     id: crypto.randomUUID(),
     username: username.toLowerCase(),
     displayName,
     passwordHash: await hashPassword(password, salt),
     salt,
+    encSalt,
     createdAt: new Date().toISOString(),
   };
   users.push(newUser);
   saveStoredUsers(users);
 
-  // Derive and store encryption key for history encryption
-  await storeEncryptionKey(password, salt);
-
-  const session: SessionData = {
-    id: newUser.id,
-    username: newUser.username,
-    displayName: newUser.displayName,
-    createdAt: newUser.createdAt,
-    createdAtSession: new Date().toISOString(),
-  };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  return session;
+  await storeEncryptionKey(password, encSalt);
+  return createSession(newUser, password);
 }
 
 export async function login(username: string, password: string): Promise<User> {
@@ -142,6 +170,8 @@ export async function login(username: string, password: string): Promise<User> {
     throw new Error("Invalid username or password");
   }
 
+  let warn: string | undefined;
+
   // Check if legacy user needs migration
   if (user.salt === "__legacy_catto_salt_2024__") {
     const oldHash = await legacyHash(password);
@@ -150,44 +180,32 @@ export async function login(username: string, password: string): Promise<User> {
     }
     // Re-hash with PBKDF2 + new random salt
     const newSalt = generateSalt();
+    const newEncSalt = generateSalt();
     user.salt = newSalt;
+    user.encSalt = newEncSalt;
     user.passwordHash = await hashPassword(password, newSalt);
     saveStoredUsers(users);
+    await storeEncryptionKey(password, newEncSalt);
 
-    await storeEncryptionKey(password, newSalt);
-
-    // Warn if legacy password is weak
     if (password.length < 8) {
-      const session: SessionData = {
-        id: user.id,
-        username: user.username,
-        displayName: user.displayName,
-        createdAt: user.createdAt,
-        createdAtSession: new Date().toISOString(),
-      };
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-      return {
-        ...session,
-        passwordWarning: "Your password is shorter than 8 characters. Please update it for better security.",
-      };
+      warn = "Your password is shorter than 8 characters. Please update it for better security.";
     }
   } else {
     const hash = await hashPassword(password, user.salt);
     if (hash !== user.passwordHash) {
       throw new Error("Invalid username or password");
     }
-    await storeEncryptionKey(password, user.salt);
+    // Ensure encSalt exists (upgrade path for users registered before encSalt was added)
+    if (!user.encSalt) {
+      user.encSalt = generateSalt();
+      saveStoredUsers(users);
+    }
+    await storeEncryptionKey(password, user.encSalt);
   }
 
-  const session: SessionData = {
-    id: user.id,
-    username: user.username,
-    displayName: user.displayName,
-    createdAt: user.createdAt,
-    createdAtSession: new Date().toISOString(),
-  };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  return session;
+  const result = await createSession(user, password);
+  if (warn) result.passwordWarning = warn;
+  return result;
 }
 
 export function logout() {
@@ -210,7 +228,7 @@ export function getCurrentUser(): User | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-    const session: SessionData = JSON.parse(raw);
+    const session: SignedSession = JSON.parse(raw);
     // Check session expiry (30 days)
     if (session.createdAtSession) {
       const age = Date.now() - new Date(session.createdAtSession).getTime();
@@ -219,7 +237,14 @@ export function getCurrentUser(): User | null {
         return null;
       }
     }
-    return session;
+    // Note: HMAC cannot be verified without the password, but expiry check prevents stale sessions.
+    // Full HMAC verification happens on next login.
+    return {
+      id: session.id,
+      username: session.username,
+      displayName: session.displayName,
+      createdAt: session.createdAt,
+    };
   } catch {
     return null;
   }

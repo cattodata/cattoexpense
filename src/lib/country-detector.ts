@@ -16,6 +16,18 @@ const COUNTRY_RULES: [string, string, RegExp[]][] = [
     /oraefum/i,
     /gardabaer/i,
     /\bhof\b/i,
+    /selfoss/i,
+    /\bvik\s+i\b|\bvik\b/i,
+    /hvolsvollur/i,
+    /hornaf/i,
+    /reykjanesbaer/i,
+    /\borkan\b/i,
+    /\bkronan\b/i,
+    /seljalandsfoss/i,
+    /thingvellir|thingvollum|thjodg/i,
+    /fridheimar/i,
+    /\bicewear\b/i,
+    /\bn1\s+(?:selfoss|borgart|vikursk|asbru|reykjan|akur)/i,
   ]],
   // Finland
   ["🇫🇮", "Finland", [
@@ -33,6 +45,9 @@ const COUNTRY_RULES: [string, string, RegExp[]][] = [
     /flyscoot|scoot\.com/i,
     /irvins.*t3|changi/i,
     /whsmith.*syd.*t1/i,
+    /\bsingapore\b/i,
+    /bee\s?cheng\s?hiang/i,
+    /\bijooz\b/i,
   ]],
   // Norway
   ["🇳🇴", "Norway", [
@@ -62,6 +77,8 @@ const COUNTRY_RULES: [string, string, RegExp[]][] = [
     /bangkok/i,
     /\bthailand\b/i,
     /\bbaht\b|\bthb\b/i,
+    /chiangmai|chiang\s?mai/i,
+    /samutprakarn|suvarnabhumi|suvarnbhumi/i,
   ]],
   // Japan
   ["🇯🇵", "Japan", [

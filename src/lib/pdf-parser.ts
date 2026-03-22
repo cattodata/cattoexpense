@@ -1,6 +1,7 @@
 import type { RawTransaction } from "./types";
 import { clearWarnings, warnSkipped, infoNote } from "./parse-warnings";
 import { detectBankAdapter, type BankAdapter } from "./bank-adapters";
+import { thaiYearToAD } from "./date-utils";
 
 // --- Amount Parsing ---
 
@@ -101,10 +102,6 @@ const THAI_MONTHS: Record<string, string> = {
   "พ.ย.": "11", "พฤศจิกายน": "11",
   "ธ.ค.": "12", "ธันวาคม": "12",
 };
-
-function thaiYearToAD(y: number): number {
-  return y > 2400 ? y - 543 : y < 100 ? y + 2000 : y;
-}
 
 const EN_MONTHS: Record<string, string> = {
   jan: "01", feb: "02", mar: "03", apr: "04", may: "05", jun: "06",
@@ -395,8 +392,6 @@ const SKIP_RE: RegExp[] = [
   /\brate\s+\d+\.\d+/i,
   // Fee lines where actual charge is $0.00 (CBA fee-free cards show "$0.00 $X.XX" = fee saved)
   /\bfee\b.*(?:\$\s*0\.00|(?:^|\s)0\.00(?:\s|$))/i,
-  // Amex noise: currency name lines (foreign transactions)
-  /^(?:JAPANESE\s+YEN|EUROPEAN\s+UNION\s+EURO|BRITISH\s+POUND|US\s+DOLLAR|CANADIAN\s+DOLLAR|NEW\s+ZEALAND\s+DOLLAR|SINGAPORE\s+DOLLAR|HONG\s+KONG\s+DOLLAR|THAI(?:LAND)?\s+BAHT|CHINESE\s+YUAN|KOREAN\s+WON|SWISS\s+FRANC|INDIAN\s+RUPEE|INDONESIAN\s+RUPIAH|MALAYSIAN\s+RINGGIT|PHILIPPINE\s+PESO|TAIWANESE\s+DOLLAR|VIETNAMESE\s+DONG|UNITED\s+ARAB|ICELANDIC\s+KRONA|SWEDISH\s+KRONA|NORWEGIAN\s+KRONE|DANISH\s+KRONE|SOUTH\s+AFRICAN\s+RAND|FIJI\s+DOLLAR)(?:\s+(?:CR|DR))?\s*$/i,
   // Amex noise: conversion commission lines
   /includes?\s+(?:a\s+)?conversion\s+commission/i,
   /conversion\s+(?:rate|fee|commission)/i,
@@ -416,6 +411,7 @@ const SKIP_RE: RegExp[] = [
 ];
 
 function isNoiseLine(line: string): boolean {
+  if (isForeignCurrencyLine(line)) return true;
   return SKIP_RE.some((re) => re.test(line));
 }
 

@@ -1,6 +1,7 @@
 import Papa from "papaparse";
 import type { RawTransaction, ColumnMapping } from "./types";
 import { clearWarnings, warnSkipped, infoNote } from "./parse-warnings";
+import { thaiYearToAD } from "./date-utils";
 
 export function detectColumns(headers: string[]): ColumnMapping | null {
   const lower = headers.map((h) => h.toLowerCase().trim());
@@ -65,10 +66,6 @@ function parseAmount(value: string): number {
   }
   const num = parseFloat(cleaned);
   return isNaN(num) ? 0 : num;
-}
-
-function thaiYearToAD(y: number): number {
-  return y > 2400 ? y - 543 : y < 100 ? y + 2000 : y;
 }
 
 function parseDate(value: string): string {

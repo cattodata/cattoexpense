@@ -3,6 +3,7 @@ export interface RawTransaction {
   amount: number;
   description: string;
   source?: string; // bank/card issuer name
+  sourceFile?: string; // original filename
   isRefund?: boolean; // credit card refund/credit
 }
 
@@ -14,6 +15,7 @@ export interface Transaction {
   subcategory?: string;
   type: "income" | "expense";
   source?: string;
+  sourceFile?: string;
   country?: string;
 }
 

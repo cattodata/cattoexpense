@@ -30,7 +30,6 @@ const CATEGORY_LIST = [
   "Entertainment",
   "Education",
   "Transfer",
-  "Income",
   "Insurance",
   "Personal Care",
   "Pets",
@@ -68,7 +67,7 @@ Respond with ONLY a JSON object mapping index numbers to category names. Example
 {"0":"Food & Dining","1":"Transport","2":"Shopping"}
 
 Rules:
-- Positive amounts are likely income unless clearly a refund
+- Positive amounts are likely refunds or transfers
 - Negative amounts are expenses
 - If description contains [MASKED] placeholders, use surrounding context and amount to infer
 - If unsure, use "Other"`;
@@ -114,7 +113,7 @@ Rules:
 - Be encouraging, not judgmental
 - Focus on the top 3 spending categories
 - Mention recurring charges if they seem high
-- Note positive trends too (if income > expenses, etc.)
+- Note positive trends too (e.g., spending decreasing over time)
 - Keep each suggestion under 2 sentences
 - This is light coaching — NOT financial advice`;
 
@@ -176,7 +175,7 @@ async function callGemini(
           await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
           continue;
         }
-        throw new Error(`Gemini API error (${resp.status}): ${err}`);
+        throw new Error(`Gemini API error (${resp.status}). Please try again.`);
       }
 
       const data = await resp.json();

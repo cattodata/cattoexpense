@@ -316,9 +316,16 @@ export default function SecurityPage() {
 
       {/* Footer */}
       <footer className="border-t border-[var(--catto-primary-20)] py-6">
-        <div className="max-w-6xl mx-auto px-6 flex items-center justify-center gap-2 text-sm text-[var(--catto-slate-400)]">
-          <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-          All data processed locally — close this page and everything is gone
+        <div className="max-w-6xl mx-auto px-6 space-y-2">
+          <div className="flex items-center justify-center gap-2 text-sm text-[var(--catto-slate-400)]">
+            <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+            All data processed locally — close this page and everything is gone
+          </div>
+          <div className="flex items-center justify-center gap-4 text-xs text-[var(--catto-slate-400)]">
+            <Link href="/disclaimer" className="hover:text-[var(--catto-slate-600)]">Disclaimer</Link>
+            <span>·</span>
+            <Link href="/security" className="hover:text-[var(--catto-slate-600)]">Security</Link>
+          </div>
         </div>
       </footer>
     </div>

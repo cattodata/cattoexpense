@@ -64,6 +64,13 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /lst\s?wilderness/i,
     /wifi\s?onboard/i,
     /hangook\s?airport|co\.?,?\s?ltd\.?\s?hangook/i,
+    /\bice\s?cave/i,
+    /excess\s?baggage/i,
+    /seljalandsfoss/i,
+    /thingvellir|thingvollum|thjodg/i,
+    /\bstay\s?in\b/i,
+    /finspiration/i,
+    /\blodge\b/i,
   ],
   "Food & Dining": [
     /uber\s*\*?\s*eats/i,
@@ -312,6 +319,28 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     // — Generic food keywords —
     /\bbakery\b/i,
     /\bfrozen\s?yogh?urt/i,
+    /\bsoup\b/i,
+    /\bjuice\b/i,
+    /tea\s?house|\bteahouse\b/i,
+    /kaffi\b/i,
+    /veitinga/i,
+    /\bdeig\b/i,
+    /\btrattoria\b/i,
+    /\bpizzeria\b/i,
+    /\btavern\b/i,
+    /\bcanteen\b/i,
+    /\bbrasserie\b/i,
+    // — International food merchants —
+    /fire\s?tiger/i,
+    /bee\s?cheng\s?hiang/i,
+    /\bs\s*&\s*p\b/i,
+    /fridheimar/i,
+    /superhungry/i,
+    /moss\s?piglet/i,
+    /\bmenam\b/i,
+    /le\s?kock/i,
+    /\bijooz\b/i,
+    /m\.k\.?\s?suki/i,
   ],
   "Groceries": [
     /grocery|supermarket|walmart|costco|trader|whole\s?foods|aldi|lidl|kroger|safeway|publix|big\s?c|tesco|makro|tops|7-?eleven|\bmarket\b|minimart|fresh/i,
@@ -354,6 +383,11 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /max\s?valu/i,
     /cp\s?fresh/i,
     /central\s?food\s?hall/i,
+    // — Iceland grocery —
+    /\bkronan\b/i,
+    // — SG / generic convenience —
+    /everyday\s?mart/i,
+    /\bmart\b/i,
   ],
   "Transport": [
     /uber(?!\s*\*?\s*eats)|lyft|grab(?!\s?food)|taxi|fuel|gas\s?station|petrol|shell|chevron|bp\b|parking|toll|transit|metro|bus\b|train\b|railway|airport|car\s?wash|auto\s?repair|mechanic|tire/i,
@@ -385,9 +419,20 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /\bmrt\b|\bbem\b/i,
     /bolt\.eu/i,
     /\bexat\b|easy\s?pass|m[\s-]?pass/i,
-    /\bptt\s?(?:station|or)\b/i,
+    /\bptt(?:st)?/i,
     /\bbangchak\b/i,
     /\bindrive\b/i,
+    // — Car rental (global) —
+    /car\s?rental|rent[\s-]?a[\s-]?car/i,
+    /\bsixt\b|sixt\d/i,
+    /\bhertz\b/i,
+    /\bavis\b/i,
+    /\beuropcar\b/i,
+    // — Iceland fuel / tolls —
+    /\bn1\s+\w/i,
+    /\borkan\b/i,
+    // — Generic toll keywords —
+    /\bexpressway\b/i,
   ],
   "Shopping": [
     /amazon(?!.*prime)|ebay|shopee|lazada|etsy|mall|shop(?:ping)?|store|retail|fashion|cloth|apparel|shoe|nike|adidas|zara|h&m|uniqlo|ikea|home\s?depot|lowes|best\s?buy|apple\s?store|electronics/i,
@@ -513,6 +558,11 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /\bwatsons?\b/i,
     /\bboots\b/i,
     /jd\s?central/i,
+    // — International fashion / retail —
+    /\bglassons?\b/i,
+    /\bicewear\b/i,
+    /str\*?\s?parka|\bparka\b/i,
+    /\bpenninn\b/i,
   ],
   "Bills & Utilities": [
     /electric|water\s?bill|gas\s?bill|internet|wifi|broadband|phone\s?bill|mobile\s?plan|cable|utilit(?:y|ies)|garbage|sewage|municipal|city\s?of|power|energy/i,
@@ -650,6 +700,8 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /\bpaolo\b/i,
     /thonburi\s?(?:hospital)?/i,
     /ramkhamhaeng|ram\s?hospital/i,
+    /dusit\s?med/i,
+    /pornkasem/i,
   ],
   "Entertainment": [
     /movie|cinema|theater|concert|ticket|game|gaming|steam|playstation|xbox|amusement|park\b|zoo|museum|bowling|karaoke/i,
@@ -683,6 +735,7 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     // — TH entertainment —
     /major\s?(?:cineplex|cinema)/i,
     /sf\s?(?:cinema|cine)/i,
+    /fossil\s*(?:&|and)\s*frame/i,
   ],
   "Education": [
     /school|university|college|tuition|course|class\b|coursera|\bbooks?\b|textbook|education|learning|training|certification|exam/i,
@@ -735,7 +788,7 @@ const CATEGORY_RULES: Record<string, RegExp[]> = {
     /bangkok\s?insurance|\bbki\b/i,
     /viriyah/i,
     /thai\s?life|\btli\b/i,
-    /\baia\b/i,
+    /\baia(?:th)?\b/i,
     /\bfwd\b/i,
     /\bprudential\b/i,
     /allianz\s?ayudhya/i,
@@ -858,7 +911,7 @@ export function categorizeTransaction(description: string, amount?: number): str
   if (/metropolitan\s?waterworks/i.test(cleaned)) return "Bills & Utilities";
   if (/provincial\s?waterworks/i.test(cleaned)) return "Bills & Utilities";
   if (/phyathai|piyavate/i.test(cleaned)) return "Health";
-  if (/bumrungrad|samitivej|bangkok\s?hospital|\bbdms\b/i.test(cleaned)) return "Health";
+  if (/bumrungrad|samitivej|bangkok\s?(?:hospital|dusit)|\bbdms\b/i.test(cleaned)) return "Health";
   if (/ramkhamhaeng|ram\s?hospital/i.test(cleaned)) return "Health";
   if (/muang\s?thai/i.test(cleaned)) return "Insurance";
   if (/bangkok\s?insurance|\bbki\b/i.test(cleaned)) return "Insurance";
